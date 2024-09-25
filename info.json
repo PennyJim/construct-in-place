@@ -1,0 +1,8 @@
+{
+  "name": "construct-in-place",
+  "title": "Construct in Place",
+  "description": "Makes any building larger than than a set amount require building in place",
+  "version": "0.0.1",
+  "author": "PennyJim",
+  "factorio_version": "1.1"
+}
