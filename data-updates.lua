@@ -22,7 +22,7 @@ local function get_dimensions(prototype)
 	local collision = prototype.collision_box or {{0,0},{0,0}}
 	local width = prototype.tile_width or math.ceil(collision[2][1] - collision[1][1])
 	local height = prototype.tile_height or math.ceil(collision[2][2] - collision[1][2])
-	return math.min(width, height), math.max(width, height)
+	return width, height
 end
 
 ---@param prototype data.EntityPrototype
@@ -270,7 +270,7 @@ __DebugAdapter.print(important_entities)
 print("tmp")
 --MARK: Recipe modification
 
----@type table<int,table<int,true>>
+---@type table<int,table<int,boolean>>
 local sizes = {}
 local parts_required = settings.startup["cip-parts-required"].value --[[@as int]]
 
@@ -278,12 +278,28 @@ for item in pairs(important_items) do
 	local recipes = item_to_recipe[item]
 	local entity = item_to_entity[item]
 	local width, height = get_dimensions(entity)
+	local can_rotate = false
 
 	local width_array = sizes[width] or {}
 	sizes[width] = width_array
-	width_array[height] = true
+	width_array[height] = width_array[height] or false
+
+	-- If the entity is rotatable
+	if width ~= height
+	and ((entity--[[@as data.CraftingMachinePrototype]].animation and entity--[[@as data.CraftingMachinePrototype]].animation.east)
+	or (entity--[[@as data.GeneratorPrototype]].horizontal_animation and entity--[[@as data.GeneratorPrototype]].vertical_animation)) then
+		can_rotate = true
+		width_array[height] = true
+		-- Also mark the rotated size
+		width_array = sizes[height] or {}
+		sizes[height] = width_array
+		width_array[width] = true -- Don't make rotatable?
+	end
 
 	local category_name = "cip-category-"..width.."x"..height
+	if can_rotate then
+		category_name = category_name.."-rot"
+	end
 
 	for _, recipe_name in pairs(recipes) do
 		local recipe = data.raw["recipe"][recipe_name]
@@ -320,115 +336,188 @@ local dummy_sprite = {
 	size = {1,1}
 }--[[@as data.Sprite]]
 
-for width, heights in pairs(sizes) do
-	for height in pairs(heights) do
-		local size_name = width.."x"..height
-		local item_name = "cip-item-"..size_name
-		local silo_name = "cip-site-"..size_name
-		local category_name = "cip-category-"..size_name
-		data:extend{
-		--[[ FIXME:
-			Silo's can't be rotated.
-			They also retain the numebr of parts crafted when changing recipe
-			Maybe replace with assembling machines and ditch the 
-		]]
-			{
-				type = "rocket-silo",
-				name = silo_name,
+---@param silo_name data.EntityID
+---@param categories data.RecipeCategoryID[]
+---@param width double
+---@param height double
+---@return data.RocketSiloPrototype
+local function rocket_silo(silo_name, categories, width, height)
+	return {
+		type = "rocket-silo",
+		name = silo_name,
 
-				active_energy_usage = "1W",
-				lamp_energy_usage = "0W",
-				rocket_entity = "cip-dummy-rocket",
-				arm_02_right_animation = dummy_animation,
-				arm_01_back_animation = dummy_animation,
-				arm_03_front_animation = dummy_animation,
-				shadow_sprite = dummy_sprite, -- TODO: Implement this
-				hole_sprite = dummy_sprite, -- TODO: Implement this?
-				hole_light_sprite = dummy_sprite, -- TODO: ?
-				rocket_shadow_overlay_sprite = dummy_sprite,
-				rocket_glow_overlay_sprite = dummy_sprite,
-				door_back_sprite = dummy_sprite,
-				door_front_sprite = dummy_sprite,
-				base_day_sprite = dummy_sprite,
-				base_front_sprite = dummy_sprite,
-				red_lights_back_sprites = dummy_sprite,
-				red_lights_front_sprites = dummy_sprite,
-				hole_clipping_box = {{0,0},{0,0}},
-				door_back_open_offset = {0,0},
-				door_front_open_offset = {0,0},
-				silo_fade_out_start_distance = 10, -- TODO: Figure out what this is
-				silo_fade_out_end_distance = 20,
-				times_to_blink = 5,
-				light_blinking_speed = 1.0,
-				door_opening_speed = 1.0,
-				rocket_parts_required = parts_required,
-				alarm_trigger = {
-					type = "script",
-					effect_id = "constructed-in-place"
-				},
+		active_energy_usage = "1W",
+		lamp_energy_usage = "0W",
+		rocket_entity = "cip-dummy-rocket",
+		arm_02_right_animation = dummy_animation,
+		arm_01_back_animation = dummy_animation,
+		arm_03_front_animation = dummy_animation,
+		shadow_sprite = dummy_sprite,
+		hole_sprite = dummy_sprite,
+		hole_light_sprite = dummy_sprite,
+		rocket_shadow_overlay_sprite = dummy_sprite,
+		rocket_glow_overlay_sprite = dummy_sprite,
+		door_back_sprite = dummy_sprite,
+		door_front_sprite = dummy_sprite,
+		base_day_sprite = dummy_sprite,
+		base_front_sprite = dummy_sprite,
+		red_lights_back_sprites = dummy_sprite,
+		red_lights_front_sprites = dummy_sprite,
+		hole_clipping_box = {{0,0},{0,0}},
+		door_back_open_offset = {0,0},
+		door_front_open_offset = {0,0},
+		silo_fade_out_start_distance = 10, -- TODO: Figure out what this is
+		silo_fade_out_end_distance = 20,
+		times_to_blink = 5,
+		light_blinking_speed = 1.0,
+		door_opening_speed = 1.0,
+		rocket_parts_required = parts_required,
+		alarm_trigger = {
+			type = "script",
+			effect_id = "cip-site-finished"
+		},
 
-				energy_usage = "1W",
-				crafting_speed = 1.0,
-				crafting_categories = {category_name},
-				energy_source = {type="void"},
-				animation = {
-					north = {
-						frame_count = 1,
-						filename = "__core__/graphics/color_luts/lut-day.png",
-						size = {1,1},
-						position = {0,15},
-						scale = math.min(width,height)*32
-					},
-					east = {
-						frame_count = 1,
-						filename = "__core__/graphics/color_luts/lut-day.png",
-						size = {1,1},
-						position = {15,0},
-						scale = math.min(width,height)*32
-					},
-					south = {
-						frame_count = 1,
-						filename = "__core__/graphics/color_luts/lut-day.png",
-						size = {1,1},
-						position = {255,0},
-						scale = math.min(width,height)*32
-					},
-					west = {
-						frame_count = 1,
-						filename = "__core__/graphics/color_luts/lut-day.png",
-						size = {1,1},
-						position = {240,15},
-						scale = math.min(width,height)*32
-					},
-				},
+		energy_usage = "1W",
+		crafting_speed = 1.0,
+		crafting_categories = categories,
+		energy_source = {type="void"},
+		animation = {
+			frame_count = 1,
+			filename = "__core__/graphics/color_luts/lut-day.png",
+			size = {width,height},
+			position = {15,0},
+			scale = 32
+		},
 
-				collision_box = {{(width-0.01)/-2, (height-0.01)/-2},{(width-0.01)/2,(height-0.01)/2}},
-				selection_box = {{width/-2, height/-2},{width/2,height/2}},
-			}--[[@as data.RocketSiloPrototype]],
-			{
-				type = "recipe-category",
-				name = category_name
-			}--[[@as data.RecipeCategory]],
+		collision_box = {{(width-0.01)/-2, (height-0.01)/-2},{(width-0.01)/2,(height-0.01)/2}},
+		selection_box = {{width/-2, height/-2},{width/2,height/2}},
+	}--[[@as data.RocketSiloPrototype]]
+end
 
-			{
-				type = "recipe",
-				name = "cip-recipe-"..size_name,
-				ingredients = {
-					{name = "wood", amount = width*height}
-				},
-				results = {
-					{name = item_name, amount = 1 }
+---@param width int
+---@param height int
+function make_size(width, height)
+	---FIXME: Actually handle can_rotate
+	local size_name = width.."x"..height
+	local size_name_rot = height.."x"..width
+	local silo_name = "cip-site-"..size_name
+	local categories = {
+		"cip-category-"..size_name,              -- Regular Category
+		"cip-category-"..size_name.."-rot",      -- Rotatable Category
+		"cip-category-"..size_name_rot.."-rot",  -- Rotated Rotatable Category
+	}
+
+	data:extend{
+		rocket_silo(silo_name, categories, width, height),
+		{
+			type = "recipe-category",
+			name = categories[1] -- Regular size
+		}--[[@as data.RecipeCategory]],
+		{
+			type = "recipe-category",
+			name = categories[2] -- Rotated size
+		}--[[@as data.RecipeCategory]],
+	}
+
+	-- Don't recreate the reused items
+	if width > height then return end
+
+	local item_name = "cip-item-"..size_name
+
+	data:extend{
+		{
+			type = "item",
+			name = item_name,
+			icon = "__core__/graphics/icons/unknown.png",
+			icon_size = 64,
+			stack_size = 50,
+			place_result = item_name,
+		} --[[@as data.ItemPrototype]],
+		{
+			type = "recipe",
+			name = "cip-recipe-"..size_name,
+			ingredients = {
+				{name = "wood", amount = width*height}
+			},
+			results = {
+				{name = item_name, amount = 1 }
+			}
+		} --[[@as data.RecipePrototype]],
+		{
+			type = "assembling-machine",
+			name = item_name,
+
+			created_effect = {
+				type = "direct",
+				action_delivery = {
+					type = "instant",
+					source_effects = {
+						type = "script",
+						effect_id = "cip-site-placed"
+					}
 				}
-			} --[[@as data.RecipePrototype]],
-			{
-				type = "item",
-				name = item_name,
-				icon = "__core__/graphics/icons/unknown.png",
-				icon_size = 64,
-				stack_size = 50,
-				place_result = silo_name,
-			} --[[@as data.ItemPrototype]]
-		}
+			},
+			collision_box = {{(width-0.01)/-2, (height-0.01)/-2},{(width-0.01)/2,(height-0.01)/2}},
+			selection_box = {{width/-2, height/-2},{width/2,height/2}},
+
+			energy_usage = "1J",
+			crafting_speed = 0.01,
+			crafting_categories = {"crafting"},
+			energy_source = {type = "void"},
+			fluid_boxes = {
+				{
+					pipe_connections = {{
+						positions = {
+							{0,-height/2},
+							{height/2,0},
+							{0,height/2},
+							{-height/2,0},
+						},
+						type = "output",
+					}},
+					-- hide_connection_info = true,
+					off_when_no_fluid_recipe = false,
+					production_type = "output",
+				}
+			},
+
+			animation = {
+				north = {
+					frame_count = 1,
+					filename = "__core__/graphics/color_luts/lut-day.png",
+					size = {1,1},
+					position = {0,15},
+					scale = math.min(width,height)*32
+				},
+				east = {
+					frame_count = 1,
+					filename = "__core__/graphics/color_luts/lut-day.png",
+					size = {1,1},
+					position = {15,0},
+					scale = math.min(width,height)*32
+				},
+				south = {
+					frame_count = 1,
+					filename = "__core__/graphics/color_luts/lut-day.png",
+					size = {1,1},
+					position = {255,0},
+					scale = math.min(width,height)*32
+				},
+				west = {
+					frame_count = 1,
+					filename = "__core__/graphics/color_luts/lut-day.png",
+					size = {1,1},
+					position = {240,15},
+					scale = math.min(width,height)*32
+				},
+			},
+		}--[[@as data.AssemblingMachinePrototype]],
+	}
+end
+
+for width, heights in pairs(sizes) do
+	for height, can_rotate in pairs(heights) do
+		make_size(width, height)
 	end
 end
 
