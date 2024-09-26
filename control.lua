@@ -1,29 +1,38 @@
 
----@type table<string,fun(EventData.on_script_trigger_effect)>
-local script_trigger_handlers = {}
 ---@class DirectionInformation
 ---@field direction defines.direction
 ---@field width int
 ---@field height int
 ---@class CIPGlobal
----@field entities table<LuaEntity,DirectionInformation>
----@field unlocked_silos table<uint,LuaEntity>
----@field registered table<uint, {}>
+--- The silos and their direction information
+---@field entities table<uint, DirectionInformation>
+--- The silos that can still change their recipe
+---@field unlocked_silos table<uint, LuaEntity>
+--- The silos we care about
+---@field registered table<uint, LuaEntity>
 global = {
 	entities={},
 	unlocked_silos={},
 	registered={},
 }
-local unlocked_silos = global.unlocked_silos
 
----@param EventData EventData.on_script_trigger_effect
-script_trigger_handlers["cip-site-finished"] = function (EventData)
-	
-end
+---@type table<string,fun(EventData.on_script_trigger_effect)>
+local script_trigger_handlers = {}
+script.on_event(defines.events.on_script_trigger_effect, function (EventData)
+	local handler = script_trigger_handlers[EventData.effect_id]
+	if handler then handler(EventData) end
+end)
+
+-- Hold a reference locally so on_tick is slightly faster
+local unlocked_silos = global.unlocked_silos
+script.on_load(function ()
+	unlocked_silos = global.unlocked_silos
+end)
+
+--MARK: Placement
 
 ---@param EventData EventData.on_script_trigger_effect
 script_trigger_handlers["cip-site-placed"] = function (EventData)
-	__DebugAdapter.print(EventData)
 	local source_entity = EventData.source_entity
 	if not source_entity then return end
 
@@ -59,22 +68,22 @@ script_trigger_handlers["cip-site-placed"] = function (EventData)
 		create_build_effect_smoke = false,
 	}
 	if not silo then error("Could not place actual silo") end
-	global.entities[silo] = dir_info
-	global.unlocked_silos[silo.unit_number--[[@as uint]]] = silo
-	global.registered[silo.unit_number--[[@as uint]]] = silo
+	local unit_number = silo.unit_number
+	if not unit_number then error("The silo has no unit number!?") end
+	global.entities[unit_number] = dir_info
+	global.unlocked_silos[unit_number--[[@as uint]]] = silo
+	global.registered[unit_number--[[@as uint]]] = silo
+	script.register_on_entity_destroyed(silo)
 end
 
-
-script.on_event(defines.events.on_script_trigger_effect, function (EventData)
-	local handler = script_trigger_handlers[EventData.effect_id]
-	if handler then handler(EventData) end
-end)
+--MARK: Recipe Locking
 
 ---@param unit uint
 ---@param entity LuaEntity
 local function check_entities(unit, entity)
 	-- Remove entry if it's invalid
 	if not entity.valid then
+		log("The unit '"..unit.."' was invalidated without being removed from unlocked_silos")
 		unlocked_silos[unit] = nil
 		return
 	end
@@ -83,6 +92,7 @@ local function check_entities(unit, entity)
 	if entity.rocket_parts > 0 then
 		entity.recipe_locked = true
 		unlocked_silos[unit] = nil
+		log("The unit '"..unit.."' has been locked")
 		return
 	end
 end
@@ -93,15 +103,7 @@ script.on_event(defines.events.on_tick, function (EventData)
 	end
 end)
 
----@param pos1 MapPosition
----@param pos2 MapPosition
----@return number distance
-local function distance(pos1, pos2)
-	return math.sqrt(
-		math.pow(pos1.x - pos2.x, 2) +
-		math.pow(pos1.y - pos2.y, 2)
-	)
-end
+--MARK: Mining
 
 ---@param EventData EventData.on_robot_mined_entity|EventData.on_player_mined_entity
 local function mined_handler(EventData)
@@ -145,6 +147,22 @@ end
 script.on_event(defines.events.on_robot_mined_entity, mined_handler)
 script.on_event(defines.events.on_player_mined_entity, mined_handler)
 
-script.on_load(function ()
-	unlocked_silos = global.unlocked_silos
+--MARK: Construction
+
+---@param EventData EventData.on_script_trigger_effect
+script_trigger_handlers["cip-site-finished"] = function (EventData)
+	__DebugAdapter.print(EventData)
+	
+end
+
+--MARK: Entity Cleanup
+
+script.on_event(defines.events.on_entity_destroyed, function (EventData)
+	local unit_number = EventData.unit_number
+	if not unit_number then return end
+
+	global.entities[unit_number] = nil
+	global.unlocked_silos[unit_number] = nil
+	global.registered[unit_number] = nil
+	log("The unit '"..unit_number.."' has been cleaned up")
 end)
