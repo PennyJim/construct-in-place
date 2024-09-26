@@ -324,7 +324,7 @@ for item in pairs(important_items) do
 				name = ingredient.name or ingredient[1],
 				amount_max = amount,
 				amount_min = 0,
-				probability = 0.8
+				-- probability = 0.8
 			}--[[@as data.ProductPrototype]]
 			if ingredient.catalyst_amount then
 				ingredient.catalyst_amount = math.ceil(ingredient.catalyst_amount / parts_required)
