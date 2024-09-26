@@ -55,7 +55,7 @@ script_trigger_handlers["cip-site-placed"] = function (EventData)
 
 	if direction == defines.direction.east
 	or direction == defines.direction.west then
-		width,height = height,width
+		width,height = height,width --[[@as number]] --FIXME: This should not be needed
 	end
 
 	source_entity.destroy{raise_destroy = false}
@@ -214,3 +214,11 @@ script.on_event(defines.events.on_entity_destroyed, function (EventData)
 	global.registered[unit_number] = nil
 	log("The unit '"..unit_number.."' has been cleaned up")
 end)
+
+
+--TODO:
+-- [ ] Make mining the cip'ed entities drop the recipe ingredients
+-- [ ] Make picking the silos return the construction site item
+-- [ ] Make bp'ing any cip'ed entities get replaced with the construction site w/ recipe set
+--	[ ] Maybe make it item request the required items?
+-- [ ] Make placed ghosts of the cip'ed entitites get converted just like when placing a blueprint
