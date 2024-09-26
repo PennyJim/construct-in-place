@@ -234,8 +234,6 @@ for index, value in pairs(entity_to_item) do
 	entity_to_item[index] = remove_duplicates_deepcheck(value)
 end
 
-__DebugAdapter.print(important_recipes)
-
 local old = {
 	important_entities = important_entities,
 	important_items = important_items,
@@ -266,8 +264,6 @@ for item in pairs(important_items) do
 	important_entities[entity.name] = old.important_entities[entity.name]
 end
 
-__DebugAdapter.print(important_entities)
-print("tmp")
 --MARK: Recipe modification
 
 ---@type table<int,table<int,boolean>>
@@ -399,16 +395,14 @@ end
 function make_size(width, height)
 	---FIXME: Actually handle can_rotate
 	local size_name = width.."x"..height
-	local size_name_rot = height.."x"..width
-	local silo_name = "cip-site-"..size_name
 	local categories = {
 		"cip-category-"..size_name,              -- Regular Category
 		"cip-category-"..size_name.."-rot",      -- Rotatable Category
-		"cip-category-"..size_name_rot.."-rot",  -- Rotated Rotatable Category
+		"cip-category-"..height.."x"..width.."-rot",  -- Rotated Rotatable Category
 	}
 
 	data:extend{
-		rocket_silo(silo_name, categories, width, height),
+		rocket_silo("cip-site-"..size_name, categories, width, height),
 		{
 			type = "recipe-category",
 			name = categories[1] -- Regular size
