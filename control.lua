@@ -7,9 +7,12 @@ local script_trigger_handlers = {}
 ---@field height int
 ---@class CIPGlobal
 ---@field entities table<LuaEntity,DirectionInformation>
+---@field unlocked_silos table<uint,LuaEntity>
 global = {
 	entities={},
+	unlocked_silos={},
 }
+local unlocked_silos = global.unlocked_silos
 
 ---@param EventData EventData.on_script_trigger_effect
 script_trigger_handlers["cip-site-finished"] = function (EventData)
@@ -49,15 +52,44 @@ script_trigger_handlers["cip-site-placed"] = function (EventData)
 		name = "cip-site-"..width.."x"..height,
 		position = position,
 		player = last_user,
+		force = last_user and last_user.force_index or "player",
 		raise_built = false, -- I can be convinced to enable this
 		create_build_effect_smoke = false,
 	}
 	if not silo then error("Could not place actual silo") end
 	global.entities[silo] = dir_info
+	global.unlocked_silos[silo.unit_number--[[@as uint]]] = silo
 end
 
 
 script.on_event(defines.events.on_script_trigger_effect, function (EventData)
 	local handler = script_trigger_handlers[EventData.effect_id]
 	if handler then handler(EventData) end
+end)
+
+---@param unit uint
+---@param entity LuaEntity
+local function check_entities(unit, entity)
+	-- Remove entry if it's invalid
+	if not entity.valid then
+		unlocked_silos[unit] = nil
+		return
+	end
+
+	-- Lock and remove entity if it's progressed
+	if entity.rocket_parts > 0 then
+		entity.recipe_locked = true
+		unlocked_silos[unit] = nil
+		return
+	end
+end
+
+script.on_event(defines.events.on_tick, function (EventData)
+	for unit, entity in pairs(unlocked_silos) do
+		check_entities(unit, entity)
+	end
+end)
+
+script.on_load(function ()
+	unlocked_silos = global.unlocked_silos
 end)
