@@ -8,9 +8,11 @@ local script_trigger_handlers = {}
 ---@class CIPGlobal
 ---@field entities table<LuaEntity,DirectionInformation>
 ---@field unlocked_silos table<uint,LuaEntity>
+---@field registered table<uint, {}>
 global = {
 	entities={},
 	unlocked_silos={},
+	registered={},
 }
 local unlocked_silos = global.unlocked_silos
 
@@ -59,6 +61,7 @@ script_trigger_handlers["cip-site-placed"] = function (EventData)
 	if not silo then error("Could not place actual silo") end
 	global.entities[silo] = dir_info
 	global.unlocked_silos[silo.unit_number--[[@as uint]]] = silo
+	global.registered[script.register_on_entity_destroyed(silo)] = silo
 end
 
 
@@ -87,6 +90,63 @@ end
 script.on_event(defines.events.on_tick, function (EventData)
 	for unit, entity in pairs(unlocked_silos) do
 		check_entities(unit, entity)
+	end
+end)
+
+---@param pos1 MapPosition
+---@param pos2 MapPosition
+---@return number distance
+local function distance(pos1, pos2)
+	return math.sqrt(
+		math.pow(pos1.x - pos2.x, 2) +
+		math.pow(pos1.y - pos2.y, 2)
+	)
+end
+
+script.on_event(defines.events.on_entity_destroyed, function (EventData)
+	--FIXME: entity is not valid.. Store the information instead of trying to grab it now
+	-- But also, how am I meant to performantly keep track of rocket parts?
+	local entity = global.registered[EventData.registration_number]
+	global.registered[EventData.registration_number] = nil
+
+	-- local recipe = entity.get_recipe()
+	-- local player = entity.last_use
+	-- local position = entity.position
+	local recipe = "steam-engine"
+	local player = game.get_player(1) --[[@as LuaPlayer]]
+	local position = player.position
+	---@type LuaInventory?
+	local inventory
+
+	--FIXME: Use the on_mined events
+	if player then
+		local player_position = player.position
+		if distance(position, player_position) <= player.reach_distance then
+			inventory = player.character.get_main_inventory()
+		end
+	end
+
+	-- local surface = entity.surface
+	local surface = player.surface
+	local create_params = {
+		name = "cip-"..recipe.."-fragment",
+		position = position,
+		raise_built = false,
+	}--[[@as LuaSurface.create_entity_param]]
+
+	local mine_params = {
+		force = true,
+		inventory = inventory,
+		raise_destroyed = false,
+	}--[[@as LuaEntity.mine_param]]
+
+	-- local count = entity.rocket_parts
+	local count = 2
+	---@type LuaEntity
+	local pack
+	for i = 1, count, 1 do
+		pack = surface.create_entity(create_params)--[[@as LuaEntity]]
+		pack.mine(mine_params)
 	end
 end)
 

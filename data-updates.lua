@@ -307,16 +307,40 @@ for item in pairs(important_items) do
 				or recipe.ingredients
 		---@cast ingredients -?
 
-		for _, ingredient in pairs(ingredients) do
+		---@type data.ProductPrototype[]
+		local mining_results = {}
+
+		for index, ingredient in pairs(ingredients) do
+			local amount = 0
 			if ingredient.amount then
-				ingredient.amount = math.ceil(ingredient.amount / parts_required)
+				amount = math.ceil(ingredient.amount / parts_required)
+				ingredient.amount = amount
 			else
-				ingredient[2] = math.ceil(ingredient[2] / parts_required)
+				amount = math.ceil(ingredient[2] / parts_required)
+				ingredient[2] = amount
 			end
+			mining_results[index] = {
+				type = ingredient.type or "item",
+				name = ingredient.name or ingredient[1],
+				amount_max = amount,
+				amount_min = 0,
+				probability = 0.8
+			}--[[@as data.ProductPrototype]]
 			if ingredient.catalyst_amount then
 				ingredient.catalyst_amount = math.ceil(ingredient.catalyst_amount / parts_required)
 			end
 		end
+
+		data:extend{
+			{
+				type = "simple-entity",
+				name = "cip-"..recipe_name.."-fragment",
+				minable = {
+					mining_time = 0.0,
+					results = mining_results
+				}
+			}--[[@as data.SimpleEntityPrototype]]
+		}
 	end
 end
 
@@ -341,6 +365,10 @@ local function rocket_silo(silo_name, categories, width, height)
 	return {
 		type = "rocket-silo",
 		name = silo_name,
+
+		minable = {
+			mining_time = 10
+		},
 
 		active_energy_usage = "1W",
 		lamp_energy_usage = "0W",
