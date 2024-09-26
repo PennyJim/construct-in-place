@@ -1,6 +1,6 @@
 
 ---@class DirectionInformation
----@field direction defines.direction
+---@field orientation RealOrientation
 ---@field width int
 ---@field height int
 ---@class CIPGlobal
@@ -43,11 +43,12 @@ script_trigger_handlers["cip-site-placed"] = function (EventData)
 	local width,height = tonumber(size:sub(1,width_len-1)),tonumber(size:sub(width_len+1))
 	if not width or not height then error("cip-site-placed was ran on an invalid entity") end
 
+	local orientation = source_entity.orientation
 	local direction = source_entity.direction
 	local last_user = source_entity.last_user
 	local position = source_entity.position
 	local dir_info = {
-		direction = direction,
+		orientation = orientation,
 		width = width,
 		height = height
 	}--[[@as DirectionInformation]]
@@ -113,9 +114,12 @@ local function mined_handler(EventData)
 	if not unit_number or not global.registered[unit_number] then return	end
 	global.registered[unit_number] = nil
 
+	local count = entity.rocket_parts
+	if count == 0 then return end
+
 	local recipe = entity.get_recipe().name
 	local surface = entity.surface
-	local inventory = game.create_inventory(2)
+	local inventory = game.create_inventory(1000)
 
 	local create_params = {
 		name = "cip-"..recipe.."-fragment",
@@ -128,7 +132,6 @@ local function mined_handler(EventData)
 		raise_destroyed = false,
 	}--[[@as LuaEntity.mine_param]]
 
-	local count = entity.rocket_parts
 	---@type LuaEntity
 	local pack
 	for i = 1, count, 1 do
@@ -151,8 +154,53 @@ script.on_event(defines.events.on_player_mined_entity, mined_handler)
 
 ---@param EventData EventData.on_script_trigger_effect
 script_trigger_handlers["cip-site-finished"] = function (EventData)
-	__DebugAdapter.print(EventData)
-	
+	local source_entity = EventData.source_entity
+	if not source_entity then return end
+
+	local surface = source_entity.surface
+	local entity = game.item_prototypes[source_entity.get_recipe().products[1].name].place_result
+	local dir_data = global.entities[source_entity.unit_number--[[@as int]]]
+	global.entities[source_entity.unit_number--[[@as int8]]] = nil
+
+	if not entity then error("Recipe is invalid for contruct in place") end
+
+	local entity_box = entity.collision_box
+	local entity_size = {
+		x = math.ceil(entity_box.right_bottom.x - entity_box.left_top.x),
+		y = math.ceil(entity_box.right_bottom.y - entity_box.left_top.y),
+	}
+
+	if entity_size.x ~= dir_data.width then
+		if entity_size.x ~= dir_data.height or entity_size.y ~= dir_data.width then
+			error("width and height of the recipe does not match the place result of the item")
+		end
+		dir_data.orientation = dir_data.orientation + 0.25 % 1
+	end
+
+	local position = source_entity.position
+	local last_user = source_entity.last_user
+	local force = source_entity.force_index
+
+	local modules = source_entity.get_inventory(defines.inventory.assembling_machine_modules) --[[@as LuaInventory]]
+	local inputs = source_entity.get_inventory(defines.inventory.assembling_machine_input) --[[@as LuaInventory]]
+	local module_size, input_size = #modules, #inputs
+	for index = 1, module_size, 1 do
+		surface.spill_item_stack(position, modules[index], true, force, false)
+	end
+	for index = 1, input_size, 1 do
+		surface.spill_item_stack(position, inputs[index], true, force, false)
+	end
+	source_entity.destroy{}
+
+	local direction = math.floor(dir_data.orientation * 8)--[[@as defines.direction]]
+
+	surface.create_entity{
+		name = entity.name,
+		direction = direction,
+		position = position,
+		player = last_user,
+		force = force,
+	}
 end
 
 --MARK: Entity Cleanup
