@@ -115,7 +115,10 @@ local function mined_handler(EventData)
 	global.registered[unit_number] = nil
 
 	local count = entity.rocket_parts
-	if count == 0 then return end
+	if count == 0 then
+		EventData.buffer.insert(entity.prototype.items_to_place_this[1])
+		return
+	end
 
 	local recipe = entity.get_recipe().name
 	local surface = entity.surface

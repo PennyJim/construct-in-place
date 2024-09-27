@@ -359,7 +359,7 @@ for item in pairs(important_items) do
 	end
 end
 
---MARK: Size creation
+--MARK: RocketSilo creation
 
 local dummy_animation = {
 	frame_count = 1,
@@ -372,17 +372,29 @@ local dummy_sprite = {
 }--[[@as data.Sprite]]
 
 ---@param silo_name data.EntityID
+---@param item_name data.ItemID
 ---@param categories data.RecipeCategoryID[]
 ---@param width double
 ---@param height double
 ---@return data.RocketSiloPrototype
-local function rocket_silo(silo_name, categories, width, height)
+local function rocket_silo(silo_name, item_name, categories, width, height)
 	return {
 		type = "rocket-silo",
 		name = silo_name,
 
+		icon = "__core__/graphics/icons/unknown.png",
+		icon_size = 64,
+
 		minable = {
 			mining_time = 10
+		},
+		placeable_by = {
+			item = item_name,
+			count = 1
+		},
+		flags = {
+			"placeable-player",
+			"player-creation",
 		},
 
 		active_energy_usage = "1W",
@@ -433,6 +445,8 @@ local function rocket_silo(silo_name, categories, width, height)
 	}--[[@as data.RocketSiloPrototype]]
 end
 
+--MARK: Size creation
+
 ---@param width int
 ---@param height int
 function make_size(width, height)
@@ -444,8 +458,13 @@ function make_size(width, height)
 		"cip-category-"..height.."x"..width.."-rot",  -- Rotated Rotatable Category
 	}
 
+	local item_name = "cip-item-"..size_name
+	if width > height then
+		item_name = "cip-item-"..height.."x"..width
+	end
+
 	data:extend{
-		rocket_silo("cip-site-"..size_name, categories, width, height),
+		rocket_silo("cip-site-"..size_name, item_name, categories, width, height),
 		{
 			type = "recipe-category",
 			name = categories[1] -- Regular size
@@ -458,8 +477,6 @@ function make_size(width, height)
 
 	-- Don't recreate the reused items
 	if width > height then return end
-
-	local item_name = "cip-item-"..size_name
 
 	data:extend{
 		{
