@@ -308,7 +308,9 @@ for item in pairs(important_items) do
 		---@cast ingredients -?
 
 		---@type data.ProductPrototype[]
-		local mining_results = {}
+		local part_mining_results = {}
+		---@type data.ProductPrototype[]
+		local entity_mining_results = {}
 
 		for index, ingredient in pairs(ingredients) do
 			local amount = 0
@@ -319,17 +321,30 @@ for item in pairs(important_items) do
 				amount = math.ceil(ingredient[2] / parts_required)
 				ingredient[2] = amount
 			end
-			mining_results[index] = {
+			if ingredient.catalyst_amount then
+				ingredient.catalyst_amount = math.ceil(ingredient.catalyst_amount / parts_required)
+			end
+
+			-- Mining results
+			local result = {
 				type = ingredient.type or "item",
 				name = ingredient.name or ingredient[1],
 				amount_max = amount,
 				amount_min = 0,
 				-- probability = 0.8
 			}--[[@as data.ProductPrototype]]
-			if ingredient.catalyst_amount then
-				ingredient.catalyst_amount = math.ceil(ingredient.catalyst_amount / parts_required)
-			end
+
+			part_mining_results[index] = table.deepcopy(result)
+			result.amount_max = result.amount_max * parts_required
+			entity_mining_results[index] = result
 		end
+
+		--FIXME: Currently just picks the 'last' recipe to determine the entity results
+		-- This has a high chance of producing an undesirable result with multiple recipes
+		local entity_mineable = entity.minable
+		entity_mineable.result = nil
+		entity_mineable.count = nil
+		entity_mineable.results = entity_mining_results
 
 		data:extend{
 			{
@@ -337,7 +352,7 @@ for item in pairs(important_items) do
 				name = "cip-"..recipe_name.."-fragment",
 				minable = {
 					mining_time = 0.0,
-					results = mining_results
+					results = part_mining_results
 				}
 			}--[[@as data.SimpleEntityPrototype]]
 		}
