@@ -10,11 +10,20 @@
 ---@field unlocked_silos table<uint, LuaEntity>
 --- The silos we care about
 ---@field registered table<uint, LuaEntity>
+--- A lookup of if an entity is cip'ed
+---@field ciped_entities table<data.EntityID,data.RecipeID>
+--- The mapping of items to their entities
+---@field ciped_items table<data.ItemID,LuaEntityPrototype>
 global = {
 	entities={},
 	unlocked_silos={},
 	registered={},
+	-- These will be able to be moved out of global in 2.0
+	ciped_entities = {},
+	ciped_items = {},
 }
+local ciped_entities = global.ciped_entities
+local ciped_items = global.ciped_items
 
 ---@type table<string,fun(EventData.on_script_trigger_effect)>
 local script_trigger_handlers = {}
@@ -27,7 +36,42 @@ end)
 local unlocked_silos = global.unlocked_silos
 script.on_load(function ()
 	unlocked_silos = global.unlocked_silos
+
+	ciped_entities = global.ciped_entities
+	ciped_items = global.ciped_items
 end)
+
+-- 
+script.on_init(function ()
+	process_entities()
+end)
+script.on_configuration_changed(function (ChangedData)
+	process_entities()
+end)
+
+--MARK: Get CIP'ed
+
+---@param name data.RecipeID
+---@param recipe LuaRecipePrototype
+local function process_recipe(name, recipe)
+	local item = game.item_prototypes[recipe.main_product.name]
+	local entity = item.place_result
+
+	if not entity then return error("Main result of recipe with dummy-item does not have a place_result") end
+
+	ciped_items[item.name] = entity
+	ciped_entities[entity.name] = name
+end
+
+function process_entities()
+	for name, recipe in pairs(game.get_filtered_recipe_prototypes{
+		{filter = "has-product-item", elem_filters = {
+			{filter = "name", name = "cip-dummy-item"}
+		}}
+	}) do
+		process_recipe(name, recipe)
+	end
+end
 
 --MARK: Placement
 
@@ -47,6 +91,7 @@ script_trigger_handlers["cip-site-placed"] = function (EventData)
 	local direction = source_entity.direction
 	local last_user = source_entity.last_user
 	local position = source_entity.position
+	local recipe = source_entity.get_recipe()
 	local dir_info = {
 		orientation = orientation,
 		width = width,
@@ -67,6 +112,7 @@ script_trigger_handlers["cip-site-placed"] = function (EventData)
 		force = last_user and last_user.force_index or "player",
 		raise_built = false, -- I can be convinced to enable this
 		create_build_effect_smoke = false,
+		recipe = recipe and recipe.name or nil
 	}
 	if not silo then error("Could not place actual silo") end
 	local unit_number = silo.unit_number
@@ -76,6 +122,50 @@ script_trigger_handlers["cip-site-placed"] = function (EventData)
 	global.registered[unit_number--[[@as uint]]] = silo
 	script.register_on_entity_destroyed(silo)
 end
+
+--MARK: Ghost placement
+
+-- Only handle the player event because ghosts cannot be placed by bots?
+local minimum_size = settings.startup["cip-minimum-size"].value --[[@as int]]
+
+script.on_event(defines.events.on_built_entity, function (EventData)
+	local ghost = EventData.created_entity
+	local entity_proto = ghost.ghost_prototype
+	local recipe_name = ciped_entities[entity_proto.name]
+	-- Do not process ghost if it's not cip'ed
+	if not recipe_name then return end
+
+	local surface = ghost.surface
+	local orientation = ghost.orientation
+	local width, height = entity_proto.tile_width, entity_proto.tile_height
+
+	if width > height then
+		width,height = height,width--[[@as int]]
+		orientation = (orientation + 0.75) % 1
+	end
+
+	local entity_name = "cip-item-"..width.."x"..height
+	local position = ghost.position
+	local direction = math.floor(orientation * 8)--[[@as defines.direction]]
+	local player = ghost.last_user
+	local force = ghost.force_index
+
+	ghost.destroy{raise_destroy = false}
+	surface.create_entity{
+		name = "entity-ghost",
+		inner_name = entity_name,
+		position = position,
+		direction = direction,
+		player = player,
+		force = force,
+
+		recipe = recipe_name,
+		create_build_effect_smoke = false,
+	}
+
+end, {
+	{filter = "type", type = "entity-ghost"}
+})
 
 --MARK: Recipe Locking
 
@@ -161,20 +251,19 @@ script_trigger_handlers["cip-site-finished"] = function (EventData)
 	if not source_entity then return end
 
 	local surface = source_entity.surface
-	local entity = game.item_prototypes[source_entity.get_recipe().products[1].name].place_result
+	local entity = ciped_items[source_entity.get_recipe().products[1].name]
 	local dir_data = global.entities[source_entity.unit_number--[[@as int]]]
 	global.entities[source_entity.unit_number--[[@as int8]]] = nil
 
 	if not entity then error("Recipe is invalid for contruct in place") end
 
-	local entity_box = entity.collision_box
 	local entity_size = {
-		x = math.ceil(entity_box.right_bottom.x - entity_box.left_top.x),
-		y = math.ceil(entity_box.right_bottom.y - entity_box.left_top.y),
+		width = entity.tile_width,
+		height = entity.tile_height,
 	}
 
-	if entity_size.x ~= dir_data.width then
-		if entity_size.x ~= dir_data.height or entity_size.y ~= dir_data.width then
+	if entity_size.width ~= dir_data.width or entity_size.height ~= dir_data.height then
+		if entity_size.width ~= dir_data.height or entity_size.height ~= dir_data.width then
 			error("width and height of the recipe does not match the place result of the item")
 		end
 		dir_data.orientation = dir_data.orientation + 0.25 % 1

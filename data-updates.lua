@@ -103,7 +103,10 @@ end
 --MARK: Recipe processing
 for name, prototype in pairs(data.raw["recipe"]) do
 	local recipe_data = prototype.normal or prototype.expensive or prototype
-	local results = recipe_data.results or {{recipe_data.result, recipe_data.result_count}}
+	local results = recipe_data.results or {{name = recipe_data.result, amount = recipe_data.result_count or 1}}
+	recipe_data.results = results
+	recipe_data.result = nil
+	recipe_data.result_count = nil
 
 	--Make sure it only produces the building
 	if #results ~= 1 then goto next_product end
@@ -246,7 +249,8 @@ important_items = {}
 for recipe in pairs(important_recipes) do
 	local recipe_prototype = data.raw["recipe"][recipe]
 	local recipe_data = recipe_prototype.normal or recipe_prototype.expensive or recipe_prototype
-	local products = recipe_data.results or {{recipe_data.result, recipe_data.result_count}}
+	local products = recipe_data.results
+	---@cast products -?
 	for _, value in pairs(products) do
 		if value.type == "fluid" then goto skip_product end
 
@@ -301,10 +305,17 @@ for item in pairs(important_items) do
 		local recipe = data.raw["recipe"][recipe_name]
 		recipe.category = category_name
 
-		local ingredients =
-				(recipe.normal and recipe.normal.ingredients)
-				or (recipe.expensive and recipe.expensive.ingredients)
-				or recipe.ingredients
+		local recipe_data = recipe.normal or recipe.expensive or recipe
+
+		recipe_data.results[2] = {
+			type = "item",
+			name = "cip-dummy-item",
+			amount = 1,
+		}
+		local main_result = recipe_data.results[1]
+		recipe_data.main_product = main_result.name or main_result[1]
+
+		local ingredients = recipe_data.ingredients
 		---@cast ingredients -?
 
 		---@type data.ProductPrototype[]
@@ -373,11 +384,12 @@ local dummy_sprite = {
 
 ---@param silo_name data.EntityID
 ---@param item_name data.ItemID
----@param categories data.RecipeCategoryID[]
+---@param categories data.RecipeCategoryID[] Will deepcopy this for easy reuse of a table :)
 ---@param width double
 ---@param height double
 ---@return data.RocketSiloPrototype
 local function rocket_silo(silo_name, item_name, categories, width, height)
+	categories = table.deepcopy(categories)
 	return {
 		type = "rocket-silo",
 		name = silo_name,
@@ -452,6 +464,7 @@ end
 function make_size(width, height)
 	---FIXME: Actually handle can_rotate
 	local size_name = width.."x"..height
+	---@type data.RecipeID[]
 	local categories = {
 		"cip-category-"..size_name,              -- Regular Category
 		"cip-category-"..size_name.."-rot",      -- Rotatable Category
@@ -477,6 +490,7 @@ function make_size(width, height)
 
 	-- Don't recreate the reused items
 	if width > height then return end
+	categories[4] = "cip-category-"..height.."x"..width
 
 	data:extend{
 		{
@@ -501,6 +515,13 @@ function make_size(width, height)
 			type = "assembling-machine",
 			name = item_name,
 
+			icon = "__core__/graphics/icons/unknown.png",
+			icon_size = 64,
+			flags = {
+				"placeable-player",
+				"player-creation",
+			},
+
 			created_effect = {
 				type = "direct",
 				action_delivery = {
@@ -516,7 +537,7 @@ function make_size(width, height)
 
 			energy_usage = "1J",
 			crafting_speed = 0.01,
-			crafting_categories = {"crafting"},
+			crafting_categories = categories,
 			energy_source = {type = "void"},
 			fluid_boxes = {
 				{
@@ -575,38 +596,47 @@ for width, heights in pairs(sizes) do
 	end
 end
 
-data:extend{{
-	type = "rocket-silo-rocket",
-	name = "cip-dummy-rocket",
+data:extend{
+	{
+		type = "rocket-silo-rocket",
+		name = "cip-dummy-rocket",
 
-	rocket_sprite = dummy_sprite,
-	rocket_shadow_sprite = dummy_sprite,
-	rocket_glare_overlay_sprite = dummy_sprite,
-	rocket_smoke_bottom1_animation = dummy_animation,
-	rocket_smoke_bottom2_animation = dummy_animation,
-	rocket_smoke_top1_animation = dummy_animation,
-	rocket_smoke_top2_animation = dummy_animation,
-	rocket_smoke_top3_animation = dummy_animation,
-	rocket_flame_animation = dummy_animation,
-	rocket_flame_left_animation = dummy_animation,
-	rocket_flame_right_animation = dummy_animation,
-	rocket_rise_offset = {0,0},
-	rocket_flame_left_rotation = 0,
-	rocket_flame_right_rotation = 0,
-	rocket_render_layer_switch_distance = 0,
-	full_render_layer_switch_distance = 0,
-	rocket_launch_offset = {0,0},
-	effects_fade_in_start_distance = 0,
-	effects_fade_in_end_distance = 0,
-	shadow_fade_out_start_ratio = 0,
-	shadow_fade_out_end_ratio = 0,
-	rocket_visible_distance_from_center = 0,
-	rising_speed = 1,
-	engine_starting_speed = 1,
-	flying_speed = 1,
-	flying_acceleration = 1,
-	inventory_size = 0,
-}--[[@as data.RocketSiloRocketPrototype]]}
+		rocket_sprite = dummy_sprite,
+		rocket_shadow_sprite = dummy_sprite,
+		rocket_glare_overlay_sprite = dummy_sprite,
+		rocket_smoke_bottom1_animation = dummy_animation,
+		rocket_smoke_bottom2_animation = dummy_animation,
+		rocket_smoke_top1_animation = dummy_animation,
+		rocket_smoke_top2_animation = dummy_animation,
+		rocket_smoke_top3_animation = dummy_animation,
+		rocket_flame_animation = dummy_animation,
+		rocket_flame_left_animation = dummy_animation,
+		rocket_flame_right_animation = dummy_animation,
+		rocket_rise_offset = {0,0},
+		rocket_flame_left_rotation = 0,
+		rocket_flame_right_rotation = 0,
+		rocket_render_layer_switch_distance = 0,
+		full_render_layer_switch_distance = 0,
+		rocket_launch_offset = {0,0},
+		effects_fade_in_start_distance = 0,
+		effects_fade_in_end_distance = 0,
+		shadow_fade_out_start_ratio = 0,
+		shadow_fade_out_end_ratio = 0,
+		rocket_visible_distance_from_center = 0,
+		rising_speed = 1,
+		engine_starting_speed = 1,
+		flying_speed = 1,
+		flying_acceleration = 1,
+		inventory_size = 0,
+	}--[[@as data.RocketSiloRocketPrototype]],
+	{
+		type = "item",
+		name = "cip-dummy-item",
+		icon = "__core__/graphics/icons/unknown.png",
+		icon_size = 64,
+		stack_size = 5000,
+	} --[[@as data.ItemPrototype]],
+}
 
 --TODO: Figure out how to make them drop (almost) all the ingredients when mined
 
