@@ -393,6 +393,8 @@ local function rocket_silo(silo_name, item_name, categories, width, height)
 	return {
 		type = "rocket-silo",
 		name = silo_name,
+		localised_name = {"cip-names.site", width, height},
+
 
 		icon = "__core__/graphics/icons/unknown.png",
 		icon_size = 64,
@@ -496,6 +498,7 @@ function make_size(width, height)
 		{
 			type = "item",
 			name = item_name,
+			-- localised_name = {"cip-names.item", width, height},
 			icon = "__core__/graphics/icons/unknown.png",
 			icon_size = 64,
 			stack_size = 50,
@@ -514,6 +517,7 @@ function make_size(width, height)
 		{
 			type = "assembling-machine",
 			name = item_name,
+			localised_name = {"cip-names.item", width, height},
 
 			icon = "__core__/graphics/icons/unknown.png",
 			icon_size = 64,
