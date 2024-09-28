@@ -64,26 +64,14 @@ function math.lcm(num1, num2)
 	return num1 * num2 / math.gcd(num1, num2)
 end
 
---- @class sprite_data_core
---- @field filename? string
---- @field frame_count? int
---- @field scale? double
---- @field shift? data.Vector.struct
---- @field tint? Color
-
---- @class sprite_data : sprite_data_core
---- @field width? int
---- @field height? int
---- @field hr? sprite_segment_variants
-
---- @class sprite_segment : data.AnimationParameters
+--- @class data.AnimationSegment : data.AnimationParameters
 --- The path to the sprite file to use.
 --- 
---- Required if the parent `sprite_definition` doesn't define `filename`.
+--- Required if the parent `data.SegmentedAnimation` doesn't define `filename`.
 --- @field filename data.FileName?
 --- Default: `{0, 0}`
 --- 
---- The shift in tiles. Compounds with the shift in the parent `sprite_definition`.
+--- The shift in tiles. Compounds with the shift in the parent `data.SegmentedAnimation`.
 --- @field shift data.Vector?
 --- Default: `sprite_definiton.shift` or `1`
 --- 
@@ -91,50 +79,50 @@ end
 --- @field scale double?
 --- Default: `false`
 --- 
---- This is overriden by the value in the parent `sprite_definition` if it is set.
+--- This is overriden by the value in the parent `data.SegmentedAnimation` if it is set.
 ---
 --- Only one of `draw_as_shadow`, `draw_as_glow` and `draw_as_light` can be true. This takes precedence over `draw_as_glow` and `draw_as_light`.
 --- @field draw_as_shadow? boolean
 --- Default: `false`
 --- 
---- This is overriden by the value in the parent `sprite_definition` if it is set.
+--- This is overriden by the value in the parent `data.SegmentedAnimation` if it is set.
 ---
 --- Only one of `draw_as_shadow`, `draw_as_glow` and `draw_as_light` can be true. This takes precedence over `draw_as_light`.
 --- @field draw_as_glow? boolean
 --- Default: `false`
 --- 
---- This is overriden by the value in the parent `sprite_definition` if it is set.
+--- This is overriden by the value in the parent `data.SegmentedAnimation` if it is set.
 ---
 --- Only one of `draw_as_shadow`, `draw_as_glow` and `draw_as_light` can be true.
 --- @field draw_as_light? boolean
---- Default: `sprite_definition.tint`
+--- Default: `data.SegmentedAnimation::tint`
 --- @field tint? Color
---- Default: `sprite_definition.run_mode`
+--- Default: `data.SegmentedAnimation::run_mode`
 --- @field run_mode? "forward"|"backward"|"forward-then-backward"
---- Default: `sprite_definition.frame_count` or `1`
+--- Default: `data.SegmentedAnimation::frame_count` or `1`
 --- 
 --- Can't be `0`.
 --- @field frame_count? uint32
---- Default: `sprite_definition.line_length` or `0`
+--- Default: `data.SegmentedAnimation::line_length` or `0`
 --- 
 --- Specifies how many pictures are on each horizontal line in the image file. `0` means that all the pictures are in one horizontal line. Once the specified number of pictures are loaded from a line, the pictures from the next line are loaded. This is to allow having longer animations loaded in to Factorio's graphics matrix than the game engine's width limit of 8192px per input file. The restriction on input files is to be compatible with most graphics cards.
 --- @field line_length? uint32
---- Default: `sprite_definition.animation_speed` or `1`
+--- Default: `data.SegmentedAnimation::animation_speed` or `1`
 --- 
 --- Modifier of the animation playing speed, the default of `1` means one animation frame per tick (60 fps). The speed of playing can often vary depending on the usage (output of steam engine for example). Has to be greater than `0`.
 --- @field animation_speed? float
---- Default: `sprite_definition.max_advance` or MAX_FLOAT
+--- Default: `data.SegmentedAnimation::max_advance` or MAX_FLOAT
 --- 
 --- Maximum amount of frames the animation can move forward in one update. Useful to cap the animation speed on entities where it is variable, such as car animations.
 --- @field max_advance? float
---- Default: `sprite_definition.repeat_count` or `1`
+--- Default: `data.SegmentedAnimation::repeat_count` or `1`
 --- 
 --- How many times to repeat the animation to complete an animation cycle. E.g. if one layer is 10 frames, a second layer of 1 frame would need `repeat_count = 10` to match the complete cycle.
 --- @field repeat_count? uint8
 
---- @alias sprite_segment_variants sprite_segment | sprite_segment[]
+--- @alias data.AnimationSegmentVariation data.AnimationSegment | data.AnimationSegment[]
 
---- @alias section_names
+--- @alias data.AnimationSegmentNames
 --- | -- Top row
 --- | "top_left"
 --- | "top_middle"
@@ -166,8 +154,8 @@ end
 --- | "right_decoration"
 --- | "bottom_decoration"
 
---- @class sprite_definition : data.AnimationParameters
---- @field [section_names] sprite_segment_variants?
+--- @class data.SegmentedAnimation : data.AnimationParameters
+--- @field [data.AnimationSegmentNames] data.AnimationSegmentVariation?
 --- The path to the default sprite file to use
 --- @field filename? data.FileName
 --- Not used. Set it in the `sprite_segment`
@@ -197,11 +185,11 @@ end
 --- Not used. Set it in the `sprite_segment`
 --- @field mipmap_count nil
 --- The high resolution definition
---- @field hr_version? sprite_definition
+--- @field hr_version? data.SegmentedAnimation
 
 --- @class entity_sprite
---- @field entity  sprite_definition
---- @field shadow? sprite_definition
+--- @field entity  data.SegmentedAnimation
+--- @field shadow? data.SegmentedAnimation
 
 ---@param sprite data.Animation[]
 local function postprocess_sprite(sprite)
@@ -223,13 +211,13 @@ end
 -- random decals may be used
 -- shiftX, shiftY = local segment tile shift
 -- shifts in segment(s) are pixel shifts
---- @param segments sprite_definition
---- @param segment_name section_names
+--- @param segments data.SegmentedAnimation
+--- @param segment_name data.AnimationSegmentNames
 --- @param shift_x number
 --- @param shift_y number
 --- @return data.Animation?
 local function create_sprite_tile(segments, segment_name, shift_x, shift_y)
-	local segment = segments--[[@as table<section_names,sprite_segment_variants>]][segment_name]
+	local segment = segments--[[@as table<data.AnimationSegmentNames,data.AnimationSegmentVariation>]][segment_name]
 	if not segment then return end
 
 	-- Choose a variant
@@ -311,13 +299,13 @@ local function create_sprite_tile(segments, segment_name, shift_x, shift_y)
 end
 
 ---@class row_names
----@field [1] section_names left
----@field [2] section_names middle
----@field [3] section_names right
----@field [4] section_names corner or edges
+---@field [1] data.AnimationSegmentNames left
+---@field [2] data.AnimationSegmentNames middle
+---@field [3] data.AnimationSegmentNames right
+---@field [4] data.AnimationSegmentNames corner or edges
 
 ---@param sprite_layers data.Animation[]
----@param segments sprite_definition
+---@param segments data.SegmentedAnimation
 ---@param names row_names
 ---@param x0 number
 ---@param xM number
@@ -347,7 +335,7 @@ end
 
 --- @param width int
 --- @param height int
---- @param segments sprite_definition
+--- @param segments data.SegmentedAnimation
 --- @param sprite_layers data.Animation[]
 local function create_entity_sprite(width, height, segments, sprite_layers)
 	local x0 = -width / 2
