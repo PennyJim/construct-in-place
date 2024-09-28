@@ -148,6 +148,17 @@ end
 --- | "bottom_middle"
 --- | "bottom_right"
 --- |
+--- | -- Width of 1
+--- | "top_corners",
+--- | "vertical_edges"
+--- | "bottom_corners"
+--- | -- Height of 1
+--- | "left_corners"
+--- | "horizontal_edges"
+--- | "right_corners"
+--- | -- Both a height and width of 1
+--- | "all_corners"
+--- |
 --- | -- Decoration?
 --- | "top_center"
 --- | "left_center"
@@ -303,6 +314,7 @@ end
 ---@field [1] section_names left
 ---@field [2] section_names middle
 ---@field [3] section_names right
+---@field [4] section_names corner or edges
 
 ---@param sprite_layers data.Animation[]
 ---@param segments sprite_definition
@@ -315,12 +327,17 @@ local function create_sprite_row(sprite_layers, segments, names, x0, xM, width, 
 	---@type data.Animation[]
 	local temp = {}
 
-
-	temp[1] = create_sprite_tile(segments, names[1], x0, y)
-	for x = 1, width - 2 do
-		temp[x+1] = create_sprite_tile(segments, names[2], x0 + x, y)
+	if width ~= 1 then
+		-- Do row of sprites
+		temp[1] = create_sprite_tile(segments, names[1], x0, y)
+		for x = 1, width - 2 do
+			temp[x+1] = create_sprite_tile(segments, names[2], x0 + x, y)
+		end
+		temp[width] = create_sprite_tile(segments, names[3], xM, y)
+	else
+		-- Do single sprite
+		temp[1] = create_sprite_tile(segments, names[4], x0, y)
 	end
-	temp[width] = create_sprite_tile(segments, names[3], xM, y)
 
 	-- Add created tiles to the layers
 	for _, animation in pairs(temp) do
@@ -338,24 +355,34 @@ local function create_entity_sprite(width, height, segments, sprite_layers)
 	local xM = width / 2 - 1
 	local yM = height / 2 - 1
 
-	create_sprite_row(sprite_layers, segments,
-		{"top_left", "top_middle", "top_right"},
-		x0, xM, width, y0
-	)
-
-	-- do middle horizontal lines
-	for y = 1, height - 2 do
+	if height > 1 then
+		-- Do top line
 		create_sprite_row(sprite_layers, segments,
-			{"left", "middle", "right"},
-			x0, xM, width, y0 + y
+			{"top_left", "top_middle", "top_right", "top_corners"},
+			x0, xM, width, y0
+		)
+
+		-- do middle lines
+		for y = 1, height - 2 do
+			create_sprite_row(sprite_layers, segments,
+				{"left", "middle", "right", "vertical_edges"},
+				x0, xM, width, y0 + y
+			)
+		end
+
+		-- do bottom line
+		create_sprite_row(sprite_layers, segments,
+			{"bottom_left", "bottom_middle", "bottom_right", "bottom_corners"},
+			x0, xM, width, yM
+		)
+	else
+
+		-- Do only row
+		create_sprite_row(sprite_layers, segments,
+			{"left_corners", "horizontal_edges", "right_corners", "all_corners"},
+			x0, xM, width, yM
 		)
 	end
-
-	-- do bottom line
-	create_sprite_row(sprite_layers, segments,
-		{"bottom_left", "bottom_middle", "bottom_right"},
-		x0, xM, width, yM
-	)
 
 	-- centers
 	if segments.top_center then

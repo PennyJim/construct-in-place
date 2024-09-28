@@ -387,6 +387,14 @@ local construction_segments = {
 		bottom_middle = {x=32,y=64},
 		bottom_right =  {x=64,y=64},
 
+		top_corners =      {x=96,y=0 },
+		vertical_edges =   {x=96,y=32},
+		bottom_corners =   {x=96,y=64},
+		left_corners =     {x=0 ,y=96},
+		horizontal_edges = {x=32,y=96},
+		right_corners =    {x=64,y=96},
+		all_corners =      {x=96,y=96},
+
 		hr_version = {
 			filename = "__construct-in-place__/graphics/entity/construction-site/hr-site.png",
 			size = {64,64}, scale = 0.5,
@@ -399,6 +407,14 @@ local construction_segments = {
 			bottom_left =   {x=0  ,y=128},
 			bottom_middle = {x=64 ,y=128},
 			bottom_right =  {x=128,y=128},
+
+			top_corners =      {x=192,y=0  },
+			vertical_edges =   {x=192,y=64 },
+			bottom_corners =   {x=192,y=128},
+			left_corners =     {x=0  ,y=192},
+			horizontal_edges = {x=64 ,y=192},
+			right_corners =    {x=128,y=192},
+			all_corners =      {x=192,y=192},
 		}
 	}
 }
