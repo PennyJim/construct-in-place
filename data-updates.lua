@@ -370,6 +370,39 @@ for item in pairs(important_items) do
 	end
 end
 
+--MARK: Construction Graphics
+
+---@type entity_sprite
+local construction_segments = {
+	entity = {
+		filename = "__construct-in-place__/graphics/entity/construction-site/site.png",
+		size = {32,32},
+		top_left =      {x=0 ,y=0 },
+		top_middle =    {x=32,y=0 },
+		top_right =     {x=64,y=0 },
+		left =          {x=0 ,y=32},
+		-- middle =        {x=32,y=32},
+		right =         {x=64,y=32},
+		bottom_left =   {x=0 ,y=64},
+		bottom_middle = {x=32,y=64},
+		bottom_right =  {x=64,y=64},
+
+		hr_version = {
+			filename = "__construct-in-place__/graphics/entity/construction-site/hr-site.png",
+			size = {64,64}, scale = 0.5,
+			top_left =      {x=0  ,y=0  },
+			top_middle =    {x=64 ,y=0  },
+			top_right =     {x=128,y=0  },
+			left =          {x=0  ,y=64 },
+			-- middle =        {x=64 ,y=64 },
+			right =         {x=128,y=64 },
+			bottom_left =   {x=0  ,y=128},
+			bottom_middle = {x=64 ,y=128},
+			bottom_right =  {x=128,y=128},
+		}
+	}
+}
+
 --MARK: RocketSilo creation
 
 local dummy_animation = {
@@ -387,8 +420,9 @@ local dummy_sprite = {
 ---@param categories data.RecipeCategoryID[] Will deepcopy this for easy reuse of a table :)
 ---@param width double
 ---@param height double
+---@param animation data.Animation
 ---@return data.RocketSiloPrototype
-local function rocket_silo(silo_name, item_name, categories, width, height)
+local function rocket_silo(silo_name, item_name, categories, width, height, animation)
 	categories = table.deepcopy(categories)
 	return {
 		type = "rocket-silo",
@@ -400,7 +434,7 @@ local function rocket_silo(silo_name, item_name, categories, width, height)
 		icon_size = 64,
 
 		minable = {
-			mining_time = 10
+			mining_time = 5
 		},
 		placeable_by = {
 			item = item_name,
@@ -446,13 +480,7 @@ local function rocket_silo(silo_name, item_name, categories, width, height)
 		crafting_speed = 1.0,
 		crafting_categories = categories,
 		energy_source = {type="void"},
-		animation = {
-			frame_count = 1,
-			filename = "__core__/graphics/color_luts/lut-day.png",
-			size = {width,height},
-			position = {15,0},
-			scale = 32
-		},
+		animation = animation,
 
 		collision_box = {{(width-0.01)/-2, (height-0.01)/-2},{(width-0.01)/2,(height-0.01)/2}},
 		selection_box = {{width/-2, height/-2},{width/2,height/2}},
@@ -461,6 +489,10 @@ end
 
 --MARK: Size creation
 
+local create_sprite = require("scripts.sprite_generation")
+
+---@type table<string,data.Animation>
+local cached_animations = {}
 ---@param width int
 ---@param height int
 function make_size(width, height)
@@ -474,12 +506,20 @@ function make_size(width, height)
 	}
 
 	local item_name = "cip-item-"..size_name
+	---@type data.Animation,data.Animation
+	local north_animation,east_animation
 	if width > height then
+		north_animation = cached_animations[size_name]
+		if not north_animation then error("Didn't already cache this orientation") end
 		item_name = "cip-item-"..height.."x"..width
+	else
+		north_animation = create_sprite(width, height, construction_segments)
+		east_animation = create_sprite(height, width, construction_segments)
+		cached_animations[height.."x"..width] = east_animation
 	end
 
 	data:extend{
-		rocket_silo("cip-site-"..size_name, item_name, categories, width, height),
+		rocket_silo("cip-site-"..size_name, item_name, categories, width, height, north_animation),
 		{
 			type = "recipe-category",
 			name = categories[1] -- Regular size
@@ -561,34 +601,10 @@ function make_size(width, height)
 			},
 
 			animation = {
-				north = {
-					frame_count = 1,
-					filename = "__core__/graphics/color_luts/lut-day.png",
-					size = {1,1},
-					position = {0,15},
-					scale = math.min(width,height)*32
-				},
-				east = {
-					frame_count = 1,
-					filename = "__core__/graphics/color_luts/lut-day.png",
-					size = {1,1},
-					position = {15,0},
-					scale = math.min(width,height)*32
-				},
-				south = {
-					frame_count = 1,
-					filename = "__core__/graphics/color_luts/lut-day.png",
-					size = {1,1},
-					position = {255,0},
-					scale = math.min(width,height)*32
-				},
-				west = {
-					frame_count = 1,
-					filename = "__core__/graphics/color_luts/lut-day.png",
-					size = {1,1},
-					position = {240,15},
-					scale = math.min(width,height)*32
-				},
+				north = north_animation,
+				east = east_animation,
+				south = north_animation,
+				west = east_animation,
 			},
 		}--[[@as data.AssemblingMachinePrototype]],
 	}
