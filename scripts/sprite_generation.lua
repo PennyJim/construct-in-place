@@ -160,11 +160,11 @@ end
 --- | "all_corners"
 --- |
 --- | -- Decoration?
---- | "top_center"
---- | "left_center"
---- | "center"
---- | "right_center"
---- | "bottom_center"
+--- | "top_decoration"
+--- | "left_decoration"
+--- | "center_decoration"
+--- | "right_decoration"
+--- | "bottom_decoration"
 
 --- @class sprite_definition : data.AnimationParameters
 --- @field [section_names] sprite_segment_variants?
@@ -384,21 +384,22 @@ local function create_entity_sprite(width, height, segments, sprite_layers)
 		)
 	end
 
-	-- centers
-	if segments.top_center then
-		table.insert(sprite_layers, create_sprite_tile(segments, "top_center", (x0 + xM) / 2, y0))
+	-- Decoration
+	--TODO: Change to a single decoration item and dynamically scatter it
+	if segments.top_decoration then
+		table.insert(sprite_layers, create_sprite_tile(segments, "top_decoration", (x0 + xM) / 2, y0))
 	end
-	if segments.left_center then
-		table.insert(sprite_layers, create_sprite_tile(segments, "left_center", x0, (y0 + yM) / 2))
+	if segments.left_decoration then
+		table.insert(sprite_layers, create_sprite_tile(segments, "left_decoration", x0, (y0 + yM) / 2))
 	end
-	if segments.center then
-		table.insert(sprite_layers, create_sprite_tile(segments, "center", (x0 + xM) / 2, (y0 + yM) / 2))
+	if segments.center_decoration then
+		table.insert(sprite_layers, create_sprite_tile(segments, "center_decoration", (x0 + xM) / 2, (y0 + yM) / 2))
 	end
-	if segments.right_center then
-		table.insert(sprite_layers, create_sprite_tile(segments, "right_center", xM, (y0 + yM) / 2))
+	if segments.right_decoration then
+		table.insert(sprite_layers, create_sprite_tile(segments, "right_decoration", xM, (y0 + yM) / 2))
 	end
-	if segments.bottom_center then
-		table.insert(sprite_layers, create_sprite_tile(segments, "bottom_center", (x0 + xM) / 2, yM))
+	if segments.bottom_decoration then
+		table.insert(sprite_layers, create_sprite_tile(segments, "bottom_decoration", (x0 + xM) / 2, yM))
 	end
 end
 
