@@ -10,20 +10,17 @@
 ---@field unlocked_silos table<uint, LuaEntity>
 --- The silos we care about
 ---@field registered table<uint, LuaEntity>
---- A lookup of if an entity is cip'ed
----@field ciped_entities table<data.EntityID,data.RecipeID>
---- The mapping of items to their entities
----@field ciped_items table<data.ItemID,LuaEntityPrototype>
 storage = {
 	entities={},
 	unlocked_silos={},
 	registered={},
-	-- These will be able to be moved out of global in 2.0
-	ciped_entities = {},
-	ciped_items = {},
 }
-local ciped_entities = storage.ciped_entities
-local ciped_items = storage.ciped_items
+--- A lookup of if an entity is cip'ed
+---@type table<data.EntityID,data.RecipeID>
+local ciped_entities = {}
+--- The mapping of items to their entities
+---@type table<data.ItemID,LuaEntityPrototype>
+local ciped_items = {}
 
 ---@type table<string,fun(EventData.on_script_trigger_effect)>
 local script_trigger_handlers = {}
@@ -36,18 +33,8 @@ end)
 local unlocked_silos = storage.unlocked_silos
 script.on_load(function ()
 	unlocked_silos = storage.unlocked_silos
-
-	ciped_entities = storage.ciped_entities
-	ciped_items = storage.ciped_items
 end)
 
--- 
-script.on_init(function ()
-	process_entities()
-end)
-script.on_configuration_changed(function (ChangedData)
-	process_entities()
-end)
 
 --MARK: Get CIP'ed
 
@@ -63,14 +50,12 @@ local function process_recipe(name, recipe)
 	ciped_entities[entity.name] = name
 end
 
-function process_entities()
-	for name, recipe in pairs(prototypes.get_recipe_filtered{
-		{filter = "has-product-item", elem_filters = {
-			{filter = "name", name = "cip-dummy-item"}
-		}}
-	}) do
-		process_recipe(name, recipe)
-	end
+for name, recipe in pairs(prototypes.get_recipe_filtered{
+	{filter = "has-product-item", elem_filters = {
+		{filter = "name", name = "cip-dummy-item"}
+	}}
+}) do
+	process_recipe(name, recipe)
 end
 
 --MARK: Placement
