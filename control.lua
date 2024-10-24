@@ -14,7 +14,7 @@
 ---@field ciped_entities table<data.EntityID,data.RecipeID>
 --- The mapping of items to their entities
 ---@field ciped_items table<data.ItemID,LuaEntityPrototype>
-global = {
+storage = {
 	entities={},
 	unlocked_silos={},
 	registered={},
@@ -22,8 +22,8 @@ global = {
 	ciped_entities = {},
 	ciped_items = {},
 }
-local ciped_entities = global.ciped_entities
-local ciped_items = global.ciped_items
+local ciped_entities = storage.ciped_entities
+local ciped_items = storage.ciped_items
 
 ---@type table<string,fun(EventData.on_script_trigger_effect)>
 local script_trigger_handlers = {}
@@ -33,12 +33,12 @@ script.on_event(defines.events.on_script_trigger_effect, function (EventData)
 end)
 
 -- Hold a reference locally so on_tick is slightly faster
-local unlocked_silos = global.unlocked_silos
+local unlocked_silos = storage.unlocked_silos
 script.on_load(function ()
-	unlocked_silos = global.unlocked_silos
+	unlocked_silos = storage.unlocked_silos
 
-	ciped_entities = global.ciped_entities
-	ciped_items = global.ciped_items
+	ciped_entities = storage.ciped_entities
+	ciped_items = storage.ciped_items
 end)
 
 -- 
@@ -54,7 +54,7 @@ end)
 ---@param name data.RecipeID
 ---@param recipe LuaRecipePrototype
 local function process_recipe(name, recipe)
-	local item = game.item_prototypes[recipe.main_product.name]
+	local item = prototypes.item[recipe.main_product.name]
 	local entity = item.place_result
 
 	if not entity then return error("Main result of recipe with dummy-item does not have a place_result") end
@@ -64,7 +64,7 @@ local function process_recipe(name, recipe)
 end
 
 function process_entities()
-	for name, recipe in pairs(game.get_filtered_recipe_prototypes{
+	for name, recipe in pairs(prototypes.get_recipe_filtered{
 		{filter = "has-product-item", elem_filters = {
 			{filter = "name", name = "cip-dummy-item"}
 		}}
@@ -117,10 +117,10 @@ script_trigger_handlers["cip-site-placed"] = function (EventData)
 	if not silo then error("Could not place actual silo") end
 	local unit_number = silo.unit_number
 	if not unit_number then error("The silo has no unit number!?") end
-	global.entities[unit_number] = dir_info
-	global.unlocked_silos[unit_number--[[@as uint]]] = silo
-	global.registered[unit_number--[[@as uint]]] = silo
-	script.register_on_entity_destroyed(silo)
+	storage.entities[unit_number] = dir_info
+	storage.unlocked_silos[unit_number--[[@as uint]]] = silo
+	storage.registered[unit_number--[[@as uint]]] = silo
+	script.register_on_object_destroyed(silo)
 end
 
 --MARK: Ghost placement
@@ -129,7 +129,7 @@ end
 local minimum_size = settings.startup["cip-minimum-size"].value --[[@as int]]
 
 script.on_event(defines.events.on_built_entity, function (EventData)
-	local ghost = EventData.created_entity
+	local ghost = EventData.entity
 	local entity_proto = ghost.ghost_prototype
 	local recipe_name = ciped_entities[entity_proto.name]
 	-- Do not process ghost if it's not cip'ed
@@ -146,7 +146,7 @@ script.on_event(defines.events.on_built_entity, function (EventData)
 
 	local entity_name = "cip-item-"..width.."x"..height
 	local position = ghost.position
-	local direction = math.floor(orientation * 8)--[[@as defines.direction]]
+	local direction = math.floor(orientation * 16)--[[@as defines.direction]]
 	local player = ghost.last_user
 	local force = ghost.force_index
 
@@ -201,8 +201,8 @@ local function mined_handler(EventData)
 	local entity = EventData.entity
 	local unit_number = entity.unit_number
 	-- Do not handle this entity if it's not one we've registered
-	if not unit_number or not global.registered[unit_number] then return	end
-	global.registered[unit_number] = nil
+	if not unit_number or not storage.registered[unit_number] then return	end
+	storage.registered[unit_number] = nil
 
 	local count = entity.rocket_parts
 	if count == 0 then
@@ -233,9 +233,9 @@ local function mined_handler(EventData)
 	end
 
 	local buffer = EventData.buffer
-	for item, count in pairs(inventory.get_contents()) do
+	for _, item in pairs(inventory.get_contents()) do
 		-- inventory.remove{name=item, count=count}
-		buffer.insert{name=item, count=count}
+		buffer.insert(item--[[@as ItemStackDefinition]])
 	end
 	inventory.destroy()
 end
@@ -252,8 +252,8 @@ script_trigger_handlers["cip-site-finished"] = function (EventData)
 
 	local surface = source_entity.surface
 	local entity = ciped_items[source_entity.get_recipe().products[1].name]
-	local dir_data = global.entities[source_entity.unit_number--[[@as int]]]
-	global.entities[source_entity.unit_number--[[@as int8]]] = nil
+	local dir_data = storage.entities[source_entity.unit_number--[[@as int]]]
+	storage.entities[source_entity.unit_number--[[@as int8]]] = nil
 
 	if not entity then error("Recipe is invalid for contruct in place") end
 
@@ -277,14 +277,26 @@ script_trigger_handlers["cip-site-finished"] = function (EventData)
 	local inputs = source_entity.get_inventory(defines.inventory.assembling_machine_input) --[[@as LuaInventory]]
 	local module_size, input_size = #modules, #inputs
 	for index = 1, module_size, 1 do
-		surface.spill_item_stack(position, modules[index], true, force, false)
+		surface.spill_item_stack{
+			position = position,
+			stack = modules[index],
+			enable_looted = true,
+			force = force,
+			allow_belts = false
+		}
 	end
 	for index = 1, input_size, 1 do
-		surface.spill_item_stack(position, inputs[index], true, force, false)
+		surface.spill_item_stack{
+			position = position,
+			stack = inputs[index],
+			enable_looted = true,
+			force = force,
+			allow_belts = false
+		}
 	end
 	source_entity.destroy{}
 
-	local direction = math.floor(dir_data.orientation * 8)--[[@as defines.direction]]
+	local direction = math.floor(dir_data.orientation * 16)--[[@as defines.direction]]
 
 	surface.create_entity{
 		name = entity.name,
@@ -297,14 +309,14 @@ end
 
 --MARK: Entity Cleanup
 
-script.on_event(defines.events.on_entity_destroyed, function (EventData)
-	local unit_number = EventData.unit_number
-	if not unit_number then return end
+script.on_event(defines.events.on_object_destroyed, function (EventData)
+	local unit_id = EventData.useful_id
+	if not unit_id then return end
 
-	global.entities[unit_number] = nil
-	global.unlocked_silos[unit_number] = nil
-	global.registered[unit_number] = nil
-	log("The unit '"..unit_number.."' has been cleaned up")
+	storage.entities[unit_id] = nil
+	storage.unlocked_silos[unit_id] = nil
+	storage.registered[unit_id] = nil
+	log("The unit '"..unit_id.."' has been cleaned up")
 end)
 
 
