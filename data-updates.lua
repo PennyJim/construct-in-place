@@ -38,8 +38,7 @@ local minimum_size = settings.startup["cip-minimum-size"].value --[[@as int]]
 for entity_type in pairs(defines.prototypes.entity) do
 	---@diagnostic disable-next-line: cast-type-mismatch
 		---@cast entity_type defines.prototypes.entity
-	if entity_type == "curved-rail" then goto skip_entity_type end
-	for name, prototype in pairs(data.raw[entity_type]--[[@as table<data.EntityID,data.EntityPrototype>]]) do
+	for name, prototype in pairs(data.raw[entity_type]--[[@as table<data.EntityID,data.EntityPrototype>]] or {}) do
 		-- Check that' it's large enough
 		if calc_area(prototype) < minimum_size then goto continue_entity end
 
@@ -72,7 +71,7 @@ end
 for item_type in pairs(defines.prototypes.item) do
 ---@diagnostic disable-next-line: cast-type-mismatch
 	---@cast item_type defines.prototypes.item
-	for name, prototype in pairs(data.raw[item_type]--[[@as table<data.ItemID,data.ItemPrototype>]]) do
+	for name, prototype in pairs(data.raw[item_type]--[[@as table<data.ItemID,data.ItemPrototype>]] or {}) do
 
 		local entity = important_items[name] --[[@as data.EntityPrototype]]
 
@@ -101,14 +100,12 @@ for item_type in pairs(defines.prototypes.item) do
 end
 
 --MARK: Recipe processing
-for name, prototype in pairs(data.raw["recipe"]) do
-	local recipe_data = prototype.normal or prototype.expensive or prototype
-	local results = recipe_data.results or {{name = recipe_data.result, amount = recipe_data.result_count or 1}}
-	recipe_data.results = results
-	recipe_data.result = nil
-	recipe_data.result_count = nil
+for name, recipe in pairs(data.raw["recipe"]) do
+	-- Skip parameter recipes
+	if recipe.parameter then goto next_product end
+	local results = recipe.results or {}
 
-	--Make sure it only produces the building
+	-- Make sure it only produces the building
 	if #results ~= 1 then goto next_product end
 	local product = results[1]
 
@@ -119,14 +116,10 @@ for name, prototype in pairs(data.raw["recipe"]) do
 	if product.probability then goto next_product end
 
 	-- Skip products that make more than one (or are a range)
-	if product[1] then
-		if product[2] ~= nil and product[2] ~= 1 then goto next_product end
-	else
-		if product.amount ~= 1 then goto next_product end
-	end
+	if product.amount ~= 1 then goto next_product end
 
 	-- Make sure it's an item we care about
-	local ingredient = product.name or product[1]
+	local ingredient = product.name
 	if not important_items[ingredient] then goto next_product end
 
 	-- Add it to the map
@@ -141,9 +134,8 @@ for name, prototype in pairs(data.raw["recipe"]) do
 end
 
 --MARK: Technology processing
-for name, prototype in pairs(data.raw["technology"]) do
-	local technology_data = prototype.normal or prototype.expensive or prototype
-	for _, effect in pairs(technology_data.effects or {}) do
+for name, technology in pairs(data.raw["technology"]) do
+	for _, effect in pairs(technology.effects or {}) do
 		-- Make sure it's unlocking a recipe
 		if effect.type ~= "unlock-recipe" then goto continue_effect end
 
@@ -248,8 +240,7 @@ important_items = {}
 --MARK: Important Trimming
 for recipe in pairs(important_recipes) do
 	local recipe_prototype = data.raw["recipe"][recipe]
-	local recipe_data = recipe_prototype.normal or recipe_prototype.expensive or recipe_prototype
-	local products = recipe_data.results
+	local products = recipe_prototype.results
 	---@cast products -?
 	for _, value in pairs(products) do
 		if value.type == "fluid" then goto skip_product end
@@ -284,6 +275,7 @@ for item in pairs(important_items) do
 	sizes[width] = width_array
 	width_array[height] = width_array[height] or false
 
+
 	-- If the entity is rotatable
 	if width ~= height and (
 		(
@@ -312,17 +304,15 @@ for item in pairs(important_items) do
 		local recipe = data.raw["recipe"][recipe_name]
 		recipe.category = category_name
 
-		local recipe_data = recipe.normal or recipe.expensive or recipe
-
-		recipe_data.results[2] = {
+		recipe.results[2] = {
 			type = "item",
 			name = "cip-dummy-item",
 			amount = 1,
 		}
-		local main_result = recipe_data.results[1]
-		recipe_data.main_product = main_result.name or main_result[1]
+		local main_result = recipe.results[1]
+		recipe.main_product = main_result.name or main_result[1]
 
-		local ingredients = recipe_data.ingredients
+		local ingredients = recipe.ingredients
 		---@cast ingredients -?
 
 		---@type data.ProductPrototype[]
@@ -331,16 +321,11 @@ for item in pairs(important_items) do
 		local entity_mining_results = {}
 
 		for index, ingredient in pairs(ingredients) do
-			local amount = 0
-			if ingredient.amount then
-				amount = math.ceil(ingredient.amount / parts_required)
-				ingredient.amount = amount
-			else
-				amount = math.ceil(ingredient[2] / parts_required)
-				ingredient[2] = amount
-			end
-			if ingredient.catalyst_amount then
-				ingredient.catalyst_amount = math.ceil(ingredient.catalyst_amount / parts_required)
+			local amount = math.ceil(ingredient.amount / parts_required)
+			ingredient.amount = amount
+
+			if ingredient.ignored_by_stats then
+				ingredient.ignored_by_stats = math.ceil(ingredient.ignored_by_stats / parts_required)
 			end
 
 			-- Mining results
