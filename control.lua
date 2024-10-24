@@ -50,11 +50,20 @@ local function process_recipe(name, recipe)
 	ciped_entities[entity.name] = name
 end
 
-for name, recipe in pairs(prototypes.get_recipe_filtered{
-	{filter = "has-product-item", elem_filters = {
-		{filter = "name", name = "cip-dummy-item"}
-	}}
-}) do
+---@type RecipePrototypeFilter[]
+local recipe_filter, category_count = {}, 0
+for key in pairs(prototypes.recipe_category) do
+	if key:sub(1, 13) == "cip-category-" then
+		category_count = category_count + 1
+		recipe_filter[category_count] = {
+			filter = "category",
+			category = key,
+			mode = "or"
+		}
+	end
+end
+
+for name, recipe in pairs(prototypes.get_recipe_filtered(recipe_filter)) do
 	process_recipe(name, recipe)
 end
 

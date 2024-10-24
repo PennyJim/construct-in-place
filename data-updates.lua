@@ -304,11 +304,6 @@ for item in pairs(important_items) do
 		local recipe = data.raw["recipe"][recipe_name]
 		recipe.category = category_name
 
-		recipe.results[2] = {
-			type = "item",
-			name = "cip-dummy-item",
-			amount = 1,
-		}
 		local main_result = recipe.results[1]
 		recipe.main_product = main_result.name or main_result[1]
 
@@ -619,13 +614,6 @@ data:extend{
 		inventory_size = 0,
 		spawned_container = "cip-dummy-rocket",
 	}--[[@as data.CargoPodPrototype]],
-	{
-		type = "item",
-		name = "cip-dummy-item",
-		icon = "__core__/graphics/icons/unknown.png",
-		icon_size = 64,
-		stack_size = 5000,
-	} --[[@as data.ItemPrototype]],
 }
 
 --TODO: Figure out how to make them drop (almost) all the ingredients when mined
