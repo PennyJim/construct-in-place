@@ -229,13 +229,6 @@ local function create_sprite_tile(segments, segment_name, shift_x, shift_y)
 		end
 	end
 
-	-- Get the hr_version if defined
-	---@type data.Animation?
-	local hr_version
-	if segments.hr_version then
-		hr_version = create_sprite_tile(segments.hr_version, segment_name, shift_x, shift_y)
-	end
-
 	-- Get the width and height
 	local default_size = segments.size or {segments.width, segments.height}
 	if type(default_size) == "number" then default_size = {default_size,default_size}	end
@@ -292,9 +285,6 @@ local function create_sprite_tile(segments, segment_name, shift_x, shift_y)
 		max_advance = segment.max_advance or segments.max_advance,
 		repeat_count = segment.repeat_count or segments.repeat_count,
 		frame_sequence = segment.frame_sequence,
-
-		-- To support hr_version :)
-		hr_version = hr_version
 	}--[[@as data.Animation]]
 end
 

@@ -375,25 +375,25 @@ end
 ---@type entity_sprite
 local construction_segments = {
 	entity = {
-		filename = "__construct-in-place__/graphics/entity/construction-site/site.png",
-		size = {32,32},
-		top_left =      {x=0 ,y=0 , repeat_count=32},
-		top_middle =    {x=32,y=0 , repeat_count=32},
-		top_right =     {x=64,y=0 , repeat_count=32},
-		left =          {x=0 ,y=32, repeat_count=32},
-		-- middle =        {x=32,y=32, repeat_count=32},
-		right =         {x=64,y=32, repeat_count=32},
-		bottom_left =   {x=0 ,y=64, repeat_count=32},
-		bottom_middle = {x=32,y=64, repeat_count=32},
-		bottom_right =  {x=64,y=64, repeat_count=32},
+		filename = "__construct-in-place__/graphics/entity/construction-site/hr-site.png",
+		size = {64,64}, scale = 0.5,
+		top_left =      {x=0  ,y=0  , repeat_count=32},
+		top_middle =    {x=64 ,y=0  , repeat_count=32},
+		top_right =     {x=128,y=0  , repeat_count=32},
+		left =          {x=0  ,y=64 , repeat_count=32},
+		-- middle =        {x=64 ,y=64 , repeat_count=32},
+		right =         {x=128,y=64 , repeat_count=32},
+		bottom_left =   {x=0  ,y=128, repeat_count=32},
+		bottom_middle = {x=64 ,y=128, repeat_count=32},
+		bottom_right =  {x=128,y=128, repeat_count=32},
 
-		top_corners =      {x=96,y=0 , repeat_count=32},
-		vertical_edges =   {x=96,y=32, repeat_count=32},
-		bottom_corners =   {x=96,y=64, repeat_count=32},
-		left_corners =     {x=0 ,y=96, repeat_count=32},
-		horizontal_edges = {x=32,y=96, repeat_count=32},
-		right_corners =    {x=64,y=96, repeat_count=32},
-		all_corners =      {x=96,y=96, repeat_count=32},
+		top_corners =      {x=192,y=0  , repeat_count=32},
+		vertical_edges =   {x=192,y=64 , repeat_count=32},
+		bottom_corners =   {x=192,y=128, repeat_count=32},
+		left_corners =     {x=0  ,y=192, repeat_count=32},
+		horizontal_edges = {x=64 ,y=192, repeat_count=32},
+		right_corners =    {x=128,y=192, repeat_count=32},
+		all_corners =      {x=192,y=192, repeat_count=32},
 
 		center_decoration = {
 			filename = "__construct-in-place__/graphics/entity/construction-site/worker-1.png",
@@ -401,28 +401,6 @@ local construction_segments = {
 			line_length = 8,
 			frame_count = 32,
 		},
-
-		hr_version = {
-			filename = "__construct-in-place__/graphics/entity/construction-site/hr-site.png",
-			size = {64,64}, scale = 0.5,
-			top_left =      {x=0  ,y=0  , repeat_count=32},
-			top_middle =    {x=64 ,y=0  , repeat_count=32},
-			top_right =     {x=128,y=0  , repeat_count=32},
-			left =          {x=0  ,y=64 , repeat_count=32},
-			-- middle =        {x=64 ,y=64 , repeat_count=32},
-			right =         {x=128,y=64 , repeat_count=32},
-			bottom_left =   {x=0  ,y=128, repeat_count=32},
-			bottom_middle = {x=64 ,y=128, repeat_count=32},
-			bottom_right =  {x=128,y=128, repeat_count=32},
-
-			top_corners =      {x=192,y=0  , repeat_count=32},
-			vertical_edges =   {x=192,y=64 , repeat_count=32},
-			bottom_corners =   {x=192,y=128, repeat_count=32},
-			left_corners =     {x=0  ,y=192, repeat_count=32},
-			horizontal_edges = {x=64 ,y=192, repeat_count=32},
-			right_corners =    {x=128,y=192, repeat_count=32},
-			all_corners =      {x=192,y=192, repeat_count=32},
-		}
 	}
 }
 
