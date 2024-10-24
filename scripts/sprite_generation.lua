@@ -65,15 +65,33 @@ function math.lcm(num1, num2)
 end
 
 --- @class data.AnimationSegment : data.AnimationParameters
+--- Set it in `data.SegmentedAnimation::priority` instead
+--- @field priority nil
+--- Currently disabled. Make a case to @PennyJim why you need it
+--- @field blend_mode nil
+--- Set it in `data.SegmentedAnimation::priority` instead
+--- @field surface nil
+--- Set it in `data.SegmentedAnimation::priority` instead
+--- @field usage nil
 --- The path to the sprite file to use.
 --- 
 --- Required if the parent `data.SegmentedAnimation` doesn't define `filename`.
---- @field filename data.FileName?
+--- @field filename? data.FileName
+--- Default: `data.SegmentedAnimation::premul_alpha` or `true`
+--- 
+--- Whether alpha should be pre-multiplied.
+--- @field premul_alpha? boolean
 --- Default: `{0, 0}`
 --- 
 --- The shift in tiles. Compounds with the shift in the parent `data.SegmentedAnimation`.
 --- @field shift data.Vector?
---- Default: `sprite_definiton.shift` or `1`
+--- Default: `data.SegmentedAnimation::rotate_shift` or `false`
+--- 
+--- Whether to rotate the `shift` alongside the sprite's rotation. This only applies to sprites which are procedurally rotated by the game engine (like projectiles, wires, inserter hands, etc).
+--- @field rotate_shift? boolean
+--- Default: `data.SegmentedAnimation::apply_special_effect` or `false`
+--- @field apply_special_effect? boolean
+--- Default: `data.SegmentedAnimation::scale` or `1`
 --- 
 --- Values other than `1` specify the scale of the sprite on default zoom. A scale of `2` means that the picture will be two times bigger on screen (and thus more pixelated).
 --- @field scale double?
@@ -95,6 +113,12 @@ end
 ---
 --- Only one of `draw_as_shadow`, `draw_as_glow` and `draw_as_light` can be true.
 --- @field draw_as_light? boolean
+--- Default: `data.SegmentedAnimation::apply_runtime_tint` or `false`
+--- @field apply_runtime_tint? boolean
+--- Default: `data.SegmentedAnimation::tint_as_overlay` or `false`
+--- @field tint_as_overlay? boolean
+--- Default: `data.SegmentedAnimation::invert_colors` or `false`
+--- @field invert_colors? boolean
 --- Default: `data.SegmentedAnimation::tint`
 --- @field tint? Color
 --- Default: `data.SegmentedAnimation::run_mode`
@@ -158,34 +182,32 @@ end
 --- @field [data.AnimationSegmentNames] data.AnimationSegmentVariation?
 --- The path to the default sprite file to use
 --- @field filename? data.FileName
---- Not used. Set it in the `sprite_segment`
+--- Not used. Set it in the `data.AnimationSegment`
 --- @field x nil
---- Not used. Set it in the `sprite_segment`
+--- Not used. Set it in the `data.AnimationSegment`
 --- @field y nil
---- Not used. Set it in the `sprite_segment`
+--- Not used. Set it in the `data.AnimationSegment`
 --- @field position nil
 --- Default: `false`
 --- 
---- This overrides the value in any `sprite_segment`.
+--- This overrides the value in any `data.AnimationSegment`.
 ---
 --- Only one of `draw_as_shadow`, `draw_as_glow` and `draw_as_light` can be true. This takes precedence over `draw_as_glow` and `draw_as_light`.
 --- @field draw_as_shadow? boolean
 --- Default: `false`
 --- 
---- This overrides the value in any `sprite_segment`.
+--- This overrides the value in any `data.AnimationSegment`.
 ---
 --- Only one of `draw_as_shadow`, `draw_as_glow` and `draw_as_light` can be true. This takes precedence over `draw_as_light`.
 --- @field draw_as_glow? boolean
 --- Default: `false`
 --- 
---- This overrides the value in any `sprite_segment`.
+--- This overrides the value in any `data.AnimationSegment`.
 ---
 --- Only one of `draw_as_shadow`, `draw_as_glow` and `draw_as_light` can be true.
 --- @field draw_as_light? boolean
---- Not used. Set it in the `sprite_segment`
+--- Not used. Set it in the `data.AnimationSegment`
 --- @field mipmap_count nil
---- The high resolution definition
---- @field hr_version? data.SegmentedAnimation
 
 --- @class entity_sprite
 --- @field entity  data.SegmentedAnimation
@@ -255,27 +277,34 @@ local function create_sprite_tile(segments, segment_name, shift_x, shift_y)
 	-- Update the shift
 	shift = { -- What exactly is this math?
 		shift_x + (width / 2.0 * scale + shift.x + default_shift.x) / 32.0,
-		shift_y + (height / 2.0 * scale + shift.y) / 32.0
+		shift_y + (height / 2.0 * scale + shift.y + default_shift.y) / 32.0
 	}
 
 	return
 	{
-		-- SpriteParameters
+		-- SpriteSource
 		filename = segment.filename or segments.filename,
-		-- priority = 'medium',
-		flags = segment.flags or segments.flags,
 		width = width, height = height,
 		x = x, y = y,
+		premul_alpha = segment.premul_alpha ~= nil and segment.premul_alpha or segments.premul_alpha,
+		-- SpriteParameters
+		priority = segments.priority,
+		flags = segment.flags or segments.flags,
 		shift = shift,
+		rotate_shift = segment.rotate_shift ~= nil and segment.rotate_shift or segments.rotate_shift,
+		apply_special_effect = segment.apply_special_effect ~= nil and segment.apply_special_effect or segments.apply_special_effect,
 		scale = scale,
 		draw_as_shadow = segments.draw_as_shadow or segment.draw_as_shadow,
 		draw_as_glow = segments.draw_as_glow or segment.draw_as_glow,
 		draw_as_light = segments.draw_as_light or segment.draw_as_light,
 		mipmap_count = segment.mipmap_count,
 		apply_runtime_tint = segment.apply_runtime_tint ~= nil and segment.apply_runtime_tint or segments.apply_runtime_tint,
+		tint_as_overlay = segment.tint_as_overlay ~= nil and segment.tint_as_overlay or segments.tint_as_overlay,
+		invert_colors = segment.invert_colors ~= nil and segment.invert_colors or segments.invert_colors,
 		tint = segment.tint or segments.tint,
-		-- blend_mode = segment.blend_mode or segments.blend_mode, -- I don't see a single good use for this
-		premul_alpha = segment.premul_alpha ~= nil and segment.premul_alpha or segments.premul_alpha,
+		-- blend_mode = segment.blend_mode or segments.blend_mode, -- I don't see a single good use for this,
+		surface = segments.surface,
+		usage = segments.usage,
 
 		-- AnimationParameters
 		run_mode = segment.run_mode or segments.run_mode,

@@ -285,9 +285,16 @@ for item in pairs(important_items) do
 	width_array[height] = width_array[height] or false
 
 	-- If the entity is rotatable
-	if width ~= height
-	and ((entity--[[@as data.CraftingMachinePrototype]].animation and entity--[[@as data.CraftingMachinePrototype]].animation.east)
-	or (entity--[[@as data.GeneratorPrototype]].horizontal_animation and entity--[[@as data.GeneratorPrototype]].vertical_animation)) then
+	if width ~= height and (
+		(
+			entity--[[@as data.CraftingMachinePrototype]].graphics_set
+			and entity--[[@as data.CraftingMachinePrototype]].graphics_set.animation
+			and entity--[[@as data.CraftingMachinePrototype]].graphics_set.animation.east
+		) or (
+			entity--[[@as data.GeneratorPrototype]].horizontal_animation
+			and entity--[[@as data.GeneratorPrototype]].vertical_animation
+		)
+	) then
 		can_rotate = true
 		width_array[height] = true
 		-- Also mark the rotated size
@@ -375,7 +382,7 @@ end
 ---@type entity_sprite
 local construction_segments = {
 	entity = {
-		filename = "__construct-in-place__/graphics/entity/construction-site/hr-site.png",
+		filename = "__construct-in-place__/graphics/entity/construction-site/site.png",
 		size = {64,64}, scale = 0.5,
 		top_left =      {x=0  ,y=0  , repeat_count=32},
 		top_middle =    {x=64 ,y=0  , repeat_count=32},
@@ -405,16 +412,6 @@ local construction_segments = {
 }
 
 --MARK: RocketSilo creation
-
-local dummy_animation = {
-	frame_count = 1,
-	filename = "__core__/graphics/empty.png",
-	size = {1,1}
-}--[[@as data.Animation]]
-local dummy_sprite = {
-	filename = "__core__/graphics/empty.png",
-	size = {1,1}
-}--[[@as data.Sprite]]
 
 ---@param silo_name data.EntityID
 ---@param item_name data.ItemID
@@ -449,20 +446,6 @@ local function rocket_silo(silo_name, item_name, categories, width, height, anim
 		active_energy_usage = "1W",
 		lamp_energy_usage = "0W",
 		rocket_entity = "cip-dummy-rocket",
-		arm_02_right_animation = dummy_animation,
-		arm_01_back_animation = dummy_animation,
-		arm_03_front_animation = dummy_animation,
-		shadow_sprite = dummy_sprite,
-		hole_sprite = dummy_sprite,
-		hole_light_sprite = dummy_sprite,
-		rocket_shadow_overlay_sprite = dummy_sprite,
-		rocket_glow_overlay_sprite = dummy_sprite,
-		door_back_sprite = dummy_sprite,
-		door_front_sprite = dummy_sprite,
-		base_day_sprite = dummy_sprite,
-		base_front_sprite = dummy_sprite,
-		red_lights_back_sprites = dummy_sprite,
-		red_lights_front_sprites = dummy_sprite,
 		hole_clipping_box = {{0,0},{0,0}},
 		door_back_open_offset = {0,0},
 		door_front_open_offset = {0,0},
@@ -481,7 +464,9 @@ local function rocket_silo(silo_name, item_name, categories, width, height, anim
 		crafting_speed = 1.0,
 		crafting_categories = categories,
 		energy_source = {type="void"},
-		animation = animation,
+		graphics_set = {
+			animation = animation,
+		},
 
 		collision_box = {{(width-0.01)/-2, (height-0.01)/-2},{(width-0.01)/2,(height-0.01)/2}},
 		selection_box = {{width/-2, height/-2},{width/2,height/2}},
@@ -601,12 +586,14 @@ function make_size(width, height)
 				}
 			},
 
-			animation = {
-				north = north_animation,
-				east = east_animation,
-				south = north_animation,
-				west = east_animation,
-			},
+			graphics_set = {
+				animation = {
+					north = north_animation,
+					east = east_animation,
+					south = north_animation,
+					west = east_animation,
+				},
+			}
 		}--[[@as data.AssemblingMachinePrototype]],
 	}
 end
@@ -622,17 +609,8 @@ data:extend{
 		type = "rocket-silo-rocket",
 		name = "cip-dummy-rocket",
 
-		rocket_sprite = dummy_sprite,
-		rocket_shadow_sprite = dummy_sprite,
-		rocket_glare_overlay_sprite = dummy_sprite,
-		rocket_smoke_bottom1_animation = dummy_animation,
-		rocket_smoke_bottom2_animation = dummy_animation,
-		rocket_smoke_top1_animation = dummy_animation,
-		rocket_smoke_top2_animation = dummy_animation,
-		rocket_smoke_top3_animation = dummy_animation,
-		rocket_flame_animation = dummy_animation,
-		rocket_flame_left_animation = dummy_animation,
-		rocket_flame_right_animation = dummy_animation,
+		cargo_pod_entity = "cip-dummy-cargopod",
+
 		rocket_rise_offset = {0,0},
 		rocket_flame_left_rotation = 0,
 		rocket_flame_right_rotation = 0,
