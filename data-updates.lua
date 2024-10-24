@@ -416,8 +416,8 @@ local construction_segments = {
 ---@param silo_name data.EntityID
 ---@param item_name data.ItemID
 ---@param categories data.RecipeCategoryID[] Will deepcopy this for easy reuse of a table :)
----@param width double
----@param height double
+---@param width int
+---@param height int
 ---@param animation data.Animation
 ---@return data.RocketSiloPrototype
 local function rocket_silo(silo_name, item_name, categories, width, height, animation)
@@ -425,8 +425,7 @@ local function rocket_silo(silo_name, item_name, categories, width, height, anim
 	return {
 		type = "rocket-silo",
 		name = silo_name,
-		localised_name = {"cip-names.site", width, height},
-
+		localised_name = {"cip-names.site", tostring(width), tostring(height)},
 
 		icon = "__core__/graphics/icons/unknown.png",
 		icon_size = 64,
@@ -442,6 +441,10 @@ local function rocket_silo(silo_name, item_name, categories, width, height, anim
 			"placeable-player",
 			"player-creation",
 		},
+		alarm_trigger = {
+			type = "script",
+			effect_id = "cip-site-finished"
+		},
 
 		active_energy_usage = "1W",
 		lamp_energy_usage = "0W",
@@ -455,9 +458,9 @@ local function rocket_silo(silo_name, item_name, categories, width, height, anim
 		light_blinking_speed = 1.0,
 		door_opening_speed = 1.0,
 		rocket_parts_required = parts_required,
-		alarm_trigger = {
-			type = "script",
-			effect_id = "cip-site-finished"
+		rocket_quick_relaunch_start_offset = 1.0,
+		cargo_station_parameters = {
+			hatch_definitions = {{}}
 		},
 
 		energy_usage = "1W",
@@ -534,16 +537,16 @@ function make_size(width, height)
 			type = "recipe",
 			name = "cip-recipe-"..size_name,
 			ingredients = {
-				{name = "wood", amount = width*height}
+				{type = "item", name = "wood", amount = width*height}
 			},
 			results = {
-				{name = item_name, amount = 1 }
+				{type = "item", name = item_name, amount = 1 }
 			}
 		} --[[@as data.RecipePrototype]],
 		{
 			type = "assembling-machine",
 			name = item_name,
-			localised_name = {"cip-names.item", width, height},
+			localised_name = {"cip-names.item", tostring(width), tostring(height)},
 
 			icon = "__core__/graphics/icons/unknown.png",
 			icon_size = 64,
@@ -572,14 +575,11 @@ function make_size(width, height)
 			fluid_boxes = {
 				{
 					pipe_connections = {{
-						positions = {
-							{0,-height/2},
-							{height/2,0},
-							{0,height/2},
-							{-height/2,0},
-						},
-						type = "output",
+						direction = defines.direction.north,
+						position = {0,-height/2+1},
+						flow_direction = "output",
 					}},
+					volume = 100,
 					-- hide_connection_info = true,
 					off_when_no_fluid_recipe = false,
 					production_type = "output",
@@ -628,6 +628,12 @@ data:extend{
 		flying_acceleration = 1,
 		inventory_size = 0,
 	}--[[@as data.RocketSiloRocketPrototype]],
+	{
+		type = "cargo-pod",
+		name = "cip-dummy-cargopod",
+		inventory_size = 0,
+		spawned_container = "cip-dummy-rocket",
+	}--[[@as data.CargoPodPrototype]],
 	{
 		type = "item",
 		name = "cip-dummy-item",
