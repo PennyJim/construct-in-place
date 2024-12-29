@@ -22,7 +22,7 @@ local ciped_entities = {}
 ---@type table<data.ItemID,LuaEntityPrototype>
 local ciped_items = {}
 
----@type table<string,fun(EventData.on_script_trigger_effect)>
+---@type table<string,fun(E:EventData.on_script_trigger_effect)>
 local script_trigger_handlers = {}
 script.on_event(defines.events.on_script_trigger_effect, function (EventData)
 	local handler = script_trigger_handlers[EventData.effect_id]

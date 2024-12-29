@@ -555,7 +555,7 @@ function make_size(width, height)
 			fluid_boxes = {
 				{
 					pipe_connections = {{
-						direction = defines.direction.north,
+						direction = defines.direction.north --[[@as data.Direction]],
 						position = {0,-height/2+1},
 						flow_direction = "output",
 					}},
@@ -615,6 +615,4 @@ data:extend{
 		spawned_container = "cip-dummy-rocket",
 	}--[[@as data.CargoPodPrototype]],
 }
-
---TODO: Figure out how to make them drop (almost) all the ingredients when mined
 
