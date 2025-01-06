@@ -509,8 +509,9 @@ end)
 
 
 --TODO:
--- [ ] Make mining the cip'ed entities drop the recipe ingredients
--- [ ] Make picking the silos return the construction site item
--- [ ] Make bp'ing any cip'ed entities get replaced with the construction site w/ recipe set
---	[ ] Maybe make it item request the required items?
--- [ ] Make placed ghosts of the cip'ed entitites get converted just like when placing a blueprint
+-- [x] Make mining the cip'ed entities drop the recipe ingredients
+-- [x] Make picking the silos return the construction site item
+-- [x] Make cip'ed entities ghosts get replaced with the construction site w/ recipe set
+--	[x] Maybe make it item request the required items?
+-- [ ] Change out cip sites with recipes set to the cip'ed entity when copying
+-- [ ] Change out the cip sites without recipes set to the assembling machine entity
