@@ -286,6 +286,9 @@ script.on_event(defines.events.on_tick, function (EventData)
 	end
 end)
 
+--MARK: Bp'ing
+---TODO: implement blueprint handling to make copied sites just work
+
 --MARK: Mining
 
 ---@param EventData EventData.on_robot_mined_entity|EventData.on_player_mined_entity
@@ -393,6 +396,16 @@ script_trigger_handlers["cip-site-finished"] = function (EventData)
 		player = last_user,
 		force = force,
 	}
+
+	if dir_data.bp_stats then
+		local bp_stack = storage.bp_inventory[1]
+		bp_stack.import_stack(dir_data.bp_stats)
+		bp_stack.build_blueprint{
+			force = force,
+			surface = surface,
+			position = position,
+		}
+	end
 end
 
 --MARK: Entity Cleanup
