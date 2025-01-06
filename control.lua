@@ -93,6 +93,7 @@ end
 
 --MARK: Placement
 
+local recipe_count = settings.startup["cip-parts-required"].value --[[@as int]]
 ---@param built_entity LuaEntity
 ---@param tags? {cip_bp:string?}
 local function site_placed(built_entity, tags)
@@ -110,7 +111,8 @@ local function site_placed(built_entity, tags)
 	local direction = built_entity.direction
 	local last_user = built_entity.last_user
 	local position = built_entity.position
-	local recipe = built_entity.get_recipe()
+	local recipe, quality = built_entity.get_recipe()
+	quality = quality or {name="normal"}
 	local dir_info = {
 		orientation = orientation,
 		width = width,
@@ -149,7 +151,8 @@ local function site_placed(built_entity, tags)
 		force = last_user and last_user.force_index or "player",
 		raise_built = false, -- I can be convinced to enable this
 		create_build_effect_smoke = false,
-		recipe = recipe and recipe.name or nil
+		recipe = recipe and recipe.name or nil,
+		quality = quality,
 	}
 	if not silo then error("Could not place actual silo") end
 	local unit_number = silo.unit_number
@@ -159,6 +162,38 @@ local function site_placed(built_entity, tags)
 	storage.unlocked_silos[unit_number--[[@as uint]]] = silo
 	storage.registered[unit_number--[[@as uint]]] = silo
 	script.register_on_object_destroyed(silo)
+
+
+
+	-- TODO: Also check a technology
+	if recipe then
+		---@type BlueprintInsertPlan[]
+		local insert_plan = {}
+		for index, ingredient in pairs(recipe.ingredients) do
+			insert_plan[index] = {
+				id = {name = ingredient.name, quality = quality.name},
+				items = {
+					in_inventory = {
+						{
+							inventory = defines.inventory.assembling_machine_input,
+							stack = index-1,
+							count = ingredient.amount * recipe_count,
+						}
+					}
+				}
+			}
+		end
+
+		surface.create_entity{
+			name = "item-request-proxy",
+			target = silo,
+			modules = insert_plan,
+
+			position = position,
+			last_user = last_user,
+			force = last_user and last_user.force_index or "player",
+		}
+	end
 end
 
 --MARK: Ghost placement
@@ -188,6 +223,7 @@ local function on_ghost_built(EventData)
 	local direction = math.floor(orientation * 16)--[[@as defines.direction]]
 	local player = ghost.last_user
 	local force = ghost.force_index
+	local quality = ghost.quality
 
 	local bp_stack = storage.bp_inventory[1]
 	bp_stack.set_stack("blueprint")
@@ -229,7 +265,8 @@ local function on_ghost_built(EventData)
 		create_build_effect_smoke = false,
 		tags = {cip_bp = bp_stack.export_stack()}
 	}
-	new_entity.set_recipe(recipe_name) -- Get rid of once `recipe` is a functional parameter
+	if not new_entity then error("Couldn't make the new enity ghost!?") end
+	new_entity.set_recipe(recipe_name, quality) -- Get rid of once `recipe` is a functional parameter
 end
 
 --MARK: Generic on_built
