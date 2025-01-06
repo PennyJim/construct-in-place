@@ -263,7 +263,7 @@ for recipe in pairs(important_recipes) do
 	for _, value in pairs(products) do
 		if value.type == "fluid" then goto skip_product end
 
-		local name = value.name or value[1]
+		local name = value.name
 		if old.important_items[name] then
 			important_items[name] = old.important_items[name]
 		end
@@ -330,6 +330,45 @@ for item in pairs(important_items) do
 		local ingredients = recipe.ingredients
 		---@cast ingredients -?
 
+		--- Expand ingredients that are themselves special items
+		---@type {[data.ItemID]:data.IngredientPrototype[]}
+		local ingredients_map = {}
+		for _, ingredient in pairs(ingredients) do
+			if important_items[ingredient.name] then
+				local ingredient_recipes = item_to_recipe[ingredient.name]
+				local ingredient_recipe = ingredient_recipes[#ingredient_recipes]
+
+				for _, ingredient in pairs(data.raw["recipe"][ingredient_recipe].ingredients) do
+					append_to_map_array(ingredients_map, ingredient.name, table.deepcopy(ingredient))
+				end
+
+			else
+				append_to_map_array(ingredients_map, ingredient.name, ingredient)
+			end
+		end
+
+		-- Merge ingredients and turn back into array
+		ingredients = {}
+		local ingredient_count = 0
+		for name, prototypes in pairs(ingredients_map) do
+			local amount = 0
+			local ignored_by_stats = 0
+			for _, ingredient_prototype in pairs(prototypes) do
+				amount = amount + ingredient_prototype.amount
+				local stats = ingredient_prototype.ignored_by_stats or 0
+				ignored_by_stats = amount + stats
+			end
+
+			ingredient_count = ingredient_count + 1
+			ingredients[ingredient_count] = {
+				type = "item", -- TODO: Maybe support fluid ingredients?
+				name = name,
+				amount = amount,
+				ignored_by_stats = ignored_by_stats,
+			}
+		end
+		recipe.ingredients = ingredients
+
 		---@type data.ProductPrototype[]
 		local part_mining_results = {}
 		---@type data.ProductPrototype[]
@@ -338,15 +377,12 @@ for item in pairs(important_items) do
 		for index, ingredient in pairs(ingredients) do
 			local amount = math.ceil(ingredient.amount / parts_required)
 			ingredient.amount = amount
-
-			if ingredient.ignored_by_stats then
-				ingredient.ignored_by_stats = math.ceil(ingredient.ignored_by_stats / parts_required)
-			end
+			ingredient.ignored_by_stats = math.ceil(ingredient.ignored_by_stats / parts_required)
 
 			-- Mining results
 			local result = {
-				type = ingredient.type or "item",
-				name = ingredient.name or ingredient[1],
+				type = ingredient.type,
+				name = ingredient.name,
 				amount_max = amount,
 				amount_min = 0,
 				-- probability = 0.8
