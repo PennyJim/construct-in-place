@@ -472,8 +472,8 @@ function make_size(width, height)
 	local size_name = width.."x"..height
 	---@type data.RecipeID[]
 	local categories = {
-		"cip-category-"..size_name,              -- Regular Category
-		"cip-category-"..size_name.."-rot",      -- Rotatable Category
+		"cip-category-"..size_name,              			-- Regular Category
+		"cip-category-"..size_name.."-rot",      			-- Rotatable Category
 		"cip-category-"..height.."x"..width.."-rot",  -- Rotated Rotatable Category
 	}
 
@@ -492,6 +492,10 @@ function make_size(width, height)
 
 	data:extend{
 		rocket_silo("cip-site-"..size_name, item_name, categories, width, height, north_animation),
+	}
+	-- rocket_silo deepcopies it, so this just makes the code easier
+	categories[4] = "cip-category-"..height.."x"..width
+	data:extend{
 		{
 			type = "recipe-category",
 			name = categories[1] -- Regular size
@@ -500,11 +504,18 @@ function make_size(width, height)
 			type = "recipe-category",
 			name = categories[2] -- Rotated size
 		}--[[@as data.RecipeCategory]],
+		{
+			type = "recipe-category",
+			name = categories[3] -- Rotated Rotatable size
+		}--[[@as data.RecipeCategory]],
+		{
+			type = "recipe-category",
+			name = categories[4] -- Rotated Rotatable size
+		}--[[@as data.RecipeCategory]],
 	}
 
 	-- Don't recreate the reused items
 	if width > height then return end
-	categories[4] = "cip-category-"..height.."x"..width
 
 	data:extend{
 		{
