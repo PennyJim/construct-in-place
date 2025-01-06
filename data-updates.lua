@@ -20,8 +20,9 @@ local recipe_to_technology = {}
 ---@return int Height The long dimension
 local function get_dimensions(prototype)
 	local collision = prototype.collision_box or {{0,0},{0,0}}
-	local width = prototype.tile_width or math.ceil(collision[2][1] - collision[1][1])
-	local height = prototype.tile_height or math.ceil(collision[2][2] - collision[1][2])
+	-- Tile width seems to lie between data and runtime
+	local width = math.ceil(collision[2][1] - collision[1][1])
+	local height = math.ceil(collision[2][2] - collision[1][2])
 	return width, height
 end
 
@@ -279,6 +280,8 @@ for item in pairs(important_items) do
 	-- If the entity is rotatable
 	if width ~= height and (
 		(
+			entity.type == "rail-ramp"
+		) or (
 			entity--[[@as data.CraftingMachinePrototype]].graphics_set
 			and entity--[[@as data.CraftingMachinePrototype]].graphics_set.animation
 			and entity--[[@as data.CraftingMachinePrototype]].graphics_set.animation.east

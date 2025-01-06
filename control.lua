@@ -36,6 +36,17 @@ script.on_load(function ()
 end)
 
 
+---@param prototype LuaEntityPrototype
+---@return int Width The short dimension
+---@return int Height The long dimension
+local function get_dimensions(prototype)
+	local collision = prototype.collision_box
+	-- Tile width seems to lie between data and runtime
+	local width = math.ceil(collision.right_bottom.x - collision.left_top.x)
+	local height = math.ceil(collision.right_bottom.y - collision.left_top.y)
+	return width, height
+end
+
 --MARK: Get CIP'ed
 
 ---@param name data.RecipeID
@@ -119,19 +130,19 @@ end
 
 --MARK: Ghost placement
 
--- Only handle the player event because ghosts cannot be placed by bots?
-local minimum_size = settings.startup["cip-minimum-size"].value --[[@as int]]
-
 script.on_event(defines.events.on_built_entity, function (EventData)
 	local ghost = EventData.entity
 	local entity_proto = ghost.ghost_prototype
+	-- Can't be a tile
+	---@cast entity_proto -LuaTilePrototype
 	local recipe_name = ciped_entities[entity_proto.name]
 	-- Do not process ghost if it's not cip'ed
 	if not recipe_name then return end
 
 	local surface = ghost.surface
 	local orientation = ghost.orientation
-	local width, height = entity_proto.tile_width, entity_proto.tile_height
+	-- local width, height = entity_proto.tile_width, entity_proto.tile_height
+	local width, height = get_dimensions(entity_proto)
 
 	if width > height then
 		width,height = height,width--[[@as int]]
