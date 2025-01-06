@@ -15,6 +15,23 @@ local item_to_recipe = {}
 ---@type table<data.RecipeID,data.TechnologyID[]>
 local recipe_to_technology = {}
 
+---@generic I
+---@generic A
+---@param map table<I,A[]>
+---@param index I
+---@param new_item A
+---@overload fun(map:table<data.EntityID,item_desc[]>,index:data.EntityID,new_item:item_desc)
+---@overload fun(map:table<data.ItemID,data.RecipeID[]>,index:data.ItemID,new_item:data.RecipeID)
+---@overload fun(map:table<data.RecipeID,data.TechnologyID[]>,index:data.RecipeID,new_item:data.TechnologyID)
+local function append_to_map_array(map, index, new_item)
+	local array = map[index]
+	if not array then
+		map[index] = {new_item}
+	else
+		table.insert(array, new_item)
+	end
+end
+
 ---@param prototype data.EntityPrototype
 ---@return int Width The short dimension
 ---@return int Height The long dimension
@@ -90,9 +107,7 @@ for item_type in pairs(defines.prototypes.item) do
 		important_items[name] = {name, item_type}
 
 		-- Add item to array for placed entity's lookup
-		local entity_map = entity_to_item[entity.name] or {}--[[@as item_desc[] ]]
-		table.insert(entity_map, {name, item_type})
-		entity_to_item[entity.name] = entity_map
+		append_to_map_array(entity_to_item, entity.name, {name, item_type})
 
 		item_to_entity[name] = entity
 
@@ -129,9 +144,7 @@ for name, recipe in pairs(data.raw["recipe"]) do
 	if not important_items[product_name] then goto next_product end
 
 	-- Add it to the map
-	local recipes = item_to_recipe[product_name] or {}
-	table.insert(recipes, name)
-	item_to_recipe[product_name] = recipes
+	append_to_map_array(item_to_recipe, product_name, name)
 
 	-- Make sure the recipe is marked as important
 	important_recipes[name] = true
@@ -149,10 +162,7 @@ for name, technology in pairs(data.raw["technology"]) do
 		if not important_recipes[effect.recipe] then goto continue_effect end
 
 		-- Add it to the map
-		local technologies = recipe_to_technology[effect.recipe] or {}
-		table.insert(technologies, name)
-		recipe_to_technology[effect.recipe] = technologies
-
+		append_to_map_array(recipe_to_technology, effect.recipe, name)
 
 		::continue_effect::
 	end
@@ -196,8 +206,10 @@ local function lookup_contains(item, lookups)
 			-- Leave this check early if it doesn't match
 			if not small_lookup[key] then goto next_lookup end
 		end
+
 		do
 			-- We have made sure they match, so it *does* contain this
+			-- In a do/end because luals isn't happy
 			return true
 		end
 
