@@ -91,6 +91,55 @@ for name, recipe in pairs(prototypes.get_recipe_filtered(recipe_filter)) do
 	process_recipe(name, recipe)
 end
 
+--MARK: Get requester tech
+
+---@type table<data.RecipeID, true>
+local requester_technologies = {}
+do
+	---@type ItemPrototypeFilter[]
+	local requester_chests, requester_count = {}, 0
+	for logistic_name, logistic_chest in pairs(prototypes.get_entity_filtered{
+		{filter = "type", type = "logistic-container"}
+	}) do
+		if logistic_chest.logistic_mode == "requester" then
+			requester_count = requester_count + 1
+			requester_chests[requester_count] = {
+				filter = "name",
+				name = logistic_name,
+				mode = "or",
+			}
+		end
+	end
+
+	---@type TechnologyPrototypeFilter[]
+	local tech_filter, filter_count = {}, 0
+	for recipe_name in pairs(prototypes.get_recipe_filtered{
+		{filter = "has-product-item", elem_filters = {
+			{filter = "place-result", elem_filters = requester_chests}
+		}}
+	}) do
+		filter_count = filter_count + 1
+		tech_filter[filter_count] = {
+			filter = "unlocks-recipe",
+			recipe = recipe_name,
+			mode = "or",
+		}
+	end
+
+	for tech_name in pairs(prototypes.get_technology_filtered(tech_filter)) do
+		requester_technologies[tech_name] = true
+	end
+end
+
+---@param force LuaForce
+---@return boolean
+local function has_requesters_unlocked(force)
+	local technologies = force.technologies
+	for tech_name in pairs(requester_technologies) do
+		if technologies[tech_name].researched then return true end
+	end
+	return false
+end
 --MARK: Placement
 
 local recipe_count = settings.startup["cip-parts-required"].value --[[@as int]]
@@ -112,7 +161,7 @@ local function site_placed(built_entity, tags)
 	local last_user = built_entity.last_user
 	local position = built_entity.position
 	local recipe, quality = built_entity.get_recipe()
-	quality = quality or {name="normal"}
+	quality = quality or prototypes.quality["normal"]
 	local dir_info = {
 		orientation = orientation,
 		width = width,
@@ -143,12 +192,13 @@ local function site_placed(built_entity, tags)
 	end
 
 	built_entity.destroy{raise_destroy = false}
+	local force_id = last_user and last_user.force_index or "player"
 
 	local silo = surface.create_entity{
 		name = "cip-site-"..width.."x"..height,
 		position = position,
 		player = last_user,
-		force = last_user and last_user.force_index or "player",
+		force = force_id,
 		raise_built = false, -- I can be convinced to enable this
 		create_build_effect_smoke = false,
 		recipe = recipe and recipe.name or nil,
@@ -166,7 +216,7 @@ local function site_placed(built_entity, tags)
 
 
 	-- TODO: Also check a technology
-	if recipe then
+	if recipe and has_requesters_unlocked(game.forces[force_id]) then
 		---@type BlueprintInsertPlan[]
 		local insert_plan = {}
 		for index, ingredient in pairs(recipe.ingredients) do
@@ -191,7 +241,7 @@ local function site_placed(built_entity, tags)
 
 			position = position,
 			last_user = last_user,
-			force = last_user and last_user.force_index or "player",
+			force = force_id,
 		}
 	end
 end
