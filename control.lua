@@ -87,7 +87,8 @@ script_trigger_handlers["cip-site-placed"] = function (EventData)
 
 	local surface = game.get_surface(EventData.surface_index) --[[@as LuaSurface]]
 
-	local size = source_entity.name:sub(10)
+	local item_name = source_entity.name
+	local size = item_name:sub(10)
 	local width_len = size:find("x")
 	local width,height = tonumber(size:sub(1,width_len-1)),tonumber(size:sub(width_len+1))
 	if not width or not height then error("cip-site-placed was ran on an invalid entity") end
@@ -100,12 +101,29 @@ script_trigger_handlers["cip-site-placed"] = function (EventData)
 	local dir_info = {
 		orientation = orientation,
 		width = width,
-		height = height
+		height = height,
+		circuit_connection = {},
 	}--[[@as DirectionInformation]]
 
 	if direction == defines.direction.east
 	or direction == defines.direction.west then
 		width,height = height,width --[[@as number]] --FIXME: This should not be needed
+	end
+
+	local entity_name = "cip-site-"..width.."x"..height
+	if not prototypes.entity[entity_name] then
+		source_entity.destroy{raise_destroy = false}
+		surface.spill_item_stack{
+			position = position,
+			stack = {name = item_name}
+		}
+		if last_user then
+			last_user.create_local_flying_text{
+				create_at_cursor = true,
+				text = {"cip-no-recipe"}
+			}
+		end
+		return
 	end
 
 	source_entity.destroy{raise_destroy = false}
