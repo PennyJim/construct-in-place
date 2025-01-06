@@ -329,14 +329,10 @@ script_trigger_handlers["cip-site-finished"] = function (EventData)
 	storage.entities[source_entity.unit_number--[[@as int8]]] = nil
 
 	if not entity then error("Recipe is invalid for contruct in place") end
+	local width, height = get_dimensions(entity)
 
-	local entity_size = {
-		width = entity.tile_width,
-		height = entity.tile_height,
-	}
-
-	if entity_size.width ~= dir_data.width or entity_size.height ~= dir_data.height then
-		if entity_size.width ~= dir_data.height or entity_size.height ~= dir_data.width then
+	if width ~= dir_data.width or height ~= dir_data.height then
+		if width ~= dir_data.height or height ~= dir_data.width then
 			error("width and height of the recipe does not match the place result of the item")
 		end
 		dir_data.orientation = dir_data.orientation + 0.25 % 1
