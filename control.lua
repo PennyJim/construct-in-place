@@ -94,7 +94,7 @@ end
 --MARK: Placement
 
 ---@param built_entity LuaEntity
----@param tags? {cip_bp:string}
+---@param tags? {cip_bp:string?}
 local function site_placed(built_entity, tags)
 	local surface = built_entity.surface
 
@@ -191,11 +191,30 @@ local function on_ghost_built(EventData)
 
 	local bp_stack = storage.bp_inventory[1]
 	bp_stack.set_stack("blueprint")
-	bp_stack.create_blueprint{
+	local entities = bp_stack.create_blueprint{
 		area = ghost.selection_box,
 		surface = surface,
 		force = force,
 	}
+
+	local real_entity_number = ghost.unit_number
+	local real_entity, has_extra = 0, false
+	for index, source_entity in pairs(entities) do
+		if source_entity.unit_number ~= real_entity_number then
+			has_extra = true
+			if real_entity ~= 0 then break end
+		else
+			real_entity = index
+			if has_extra then break end
+		end
+	end
+	if real_entity == 0 then error("Didn't grab the entity inside its own collision box??") end
+
+	if has_extra then
+		local bp_entities = bp_stack.get_blueprint_entities()
+		---@cast bp_entities -?
+		bp_stack.set_blueprint_entities{bp_entities[real_entity]}
+	end
 
 	ghost.destroy{raise_destroy = false}
 	local new_entity = surface.create_entity{
@@ -223,7 +242,7 @@ local function on_built(EventData)
 	local name = entity.name
 	if name:sub(1,9) ~= "cip-item-" then return end
 
-	site_placed(entity, EventData.tags)
+	site_placed(entity, EventData.tags--[[@as {cip_bp:string?}? ]])
 end
 
 
