@@ -3,6 +3,12 @@
 ---@field orientation RealOrientation
 ---@field width int
 ---@field height int
+---@field bp_stats? table -- Determine exact type later
+---@field circuit_connection {[defines.wire_connector_id]:WireConnection[]}
+
+---@class PlayerRecord
+---@field picked_bp table -- Same type as DirectionInformation::bp_stats
+
 ---@class CIPGlobal
 --- The silos and their direction information
 ---@field entities table<uint, DirectionInformation>
@@ -10,10 +16,12 @@
 ---@field unlocked_silos table<uint, LuaEntity>
 --- The silos we care about
 ---@field registered table<uint, LuaEntity>
+---@field players table<uint, PlayerRecord>
 storage = {
 	entities={},
 	unlocked_silos={},
 	registered={},
+	players={}
 }
 --- A lookup of if an entity is cip'ed
 ---@type table<data.EntityID,data.RecipeID>
