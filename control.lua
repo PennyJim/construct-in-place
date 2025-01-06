@@ -94,7 +94,7 @@ end
 --MARK: Get requester tech
 
 ---@type table<data.RecipeID, true>
-local requester_technologies = {}
+local requester_recipes = {}
 do
 	---@type ItemPrototypeFilter[]
 	local requester_chests, requester_count = {}, 0
@@ -118,25 +118,16 @@ do
 			{filter = "place-result", elem_filters = requester_chests}
 		}}
 	}) do
-		filter_count = filter_count + 1
-		tech_filter[filter_count] = {
-			filter = "unlocks-recipe",
-			recipe = recipe_name,
-			mode = "or",
-		}
-	end
-
-	for tech_name in pairs(prototypes.get_technology_filtered(tech_filter)) do
-		requester_technologies[tech_name] = true
+		requester_recipes[recipe_name] = true
 	end
 end
 
 ---@param force LuaForce
 ---@return boolean
 local function has_requesters_unlocked(force)
-	local technologies = force.technologies
-	for tech_name in pairs(requester_technologies) do
-		if technologies[tech_name].researched then return true end
+	local recipes = force.recipes
+	for recipe_name in pairs(requester_recipes) do
+		if recipes[recipe_name].enabled then return true end
 	end
 	return false
 end
