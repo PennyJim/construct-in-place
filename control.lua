@@ -174,7 +174,7 @@ script.on_event(defines.events.on_built_entity, function (EventData)
 	local force = ghost.force_index
 
 	ghost.destroy{raise_destroy = false}
-	surface.create_entity{
+	local new_entity = surface.create_entity{
 		name = "entity-ghost",
 		inner_name = entity_name,
 		position = position,
@@ -182,9 +182,10 @@ script.on_event(defines.events.on_built_entity, function (EventData)
 		player = player,
 		force = force,
 
-		recipe = recipe_name,
+		-- recipe = recipe_name,
 		create_build_effect_smoke = false,
 	}
+	new_entity.set_recipe(recipe_name) -- Get rid of once `recipe` is a functional parameter
 
 end, {
 	{filter = "type", type = "entity-ghost"}
