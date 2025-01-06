@@ -3,7 +3,7 @@
 ---@field orientation RealOrientation
 ---@field width int
 ---@field height int
----@field bp_stats? table -- Determine exact type later
+---@field bp_stats? string -- Determine exact type later
 ---@field circuit_connection {[defines.wire_connector_id]:WireConnection[]}
 
 ---@class PlayerRecord
@@ -17,12 +17,17 @@
 --- The silos we care about
 ---@field registered table<uint, LuaEntity>
 ---@field players table<uint, PlayerRecord>
+---@field bp_inventory LuaInventory
 storage = {
 	entities={},
 	unlocked_silos={},
 	registered={},
-	players={}
+	players={},
+	-- bp_inventory=nil,
 }
+script.on_init(function ()
+	storage.bp_inventory = game.create_inventory(1)
+end)
 --- A lookup of if an entity is cip'ed
 ---@type table<data.EntityID,data.RecipeID>
 local ciped_entities = {}
@@ -88,29 +93,30 @@ end
 
 --MARK: Placement
 
----@param EventData EventData.on_script_trigger_effect
-script_trigger_handlers["cip-site-placed"] = function (EventData)
-	local source_entity = EventData.source_entity
-	if not source_entity then return end
+---@param built_entity LuaEntity
+---@param tags? {cip_bp:string}
+local function site_placed(built_entity, tags)
+	local surface = built_entity.surface
 
-	local surface = game.get_surface(EventData.surface_index) --[[@as LuaSurface]]
-
-	local item_name = source_entity.name
+	local item_name = built_entity.name
 	local size = item_name:sub(10)
 	local width_len = size:find("x")
 	local width,height = tonumber(size:sub(1,width_len-1)),tonumber(size:sub(width_len+1))
-	if not width or not height then error("cip-site-placed was ran on an invalid entity") end
+	-- If the given entity is invalid now, justlet the error happen when trying to concatenate it
+	---@cast width -?
+	---@cast height -?
 
-	local orientation = source_entity.orientation
-	local direction = source_entity.direction
-	local last_user = source_entity.last_user
-	local position = source_entity.position
-	local recipe = source_entity.get_recipe()
+	local orientation = built_entity.orientation
+	local direction = built_entity.direction
+	local last_user = built_entity.last_user
+	local position = built_entity.position
+	local recipe = built_entity.get_recipe()
 	local dir_info = {
 		orientation = orientation,
 		width = width,
 		height = height,
 		circuit_connection = {},
+		bp_stats = tags and tags.cip_bp,
 	}--[[@as DirectionInformation]]
 
 	if direction == defines.direction.east
@@ -120,7 +126,7 @@ script_trigger_handlers["cip-site-placed"] = function (EventData)
 
 	local entity_name = "cip-site-"..width.."x"..height
 	if not prototypes.entity[entity_name] then
-		source_entity.destroy{raise_destroy = false}
+		built_entity.destroy{raise_destroy = false}
 		surface.spill_item_stack{
 			position = position,
 			stack = {name = item_name}
@@ -134,7 +140,7 @@ script_trigger_handlers["cip-site-placed"] = function (EventData)
 		return
 	end
 
-	source_entity.destroy{raise_destroy = false}
+	built_entity.destroy{raise_destroy = false}
 
 	local silo = surface.create_entity{
 		name = "cip-site-"..width.."x"..height,
@@ -147,7 +153,8 @@ script_trigger_handlers["cip-site-placed"] = function (EventData)
 	}
 	if not silo then error("Could not place actual silo") end
 	local unit_number = silo.unit_number
-	if not unit_number then error("The silo has no unit number!?") end
+	---@cast unit_number -?
+
 	storage.entities[unit_number] = dir_info
 	storage.unlocked_silos[unit_number--[[@as uint]]] = silo
 	storage.registered[unit_number--[[@as uint]]] = silo
@@ -156,7 +163,8 @@ end
 
 --MARK: Ghost placement
 
-script.on_event(defines.events.on_built_entity, function (EventData)
+---@param EventData BuiltEventData
+local function on_ghost_built(EventData)
 	local ghost = EventData.entity
 	local entity_proto = ghost.ghost_prototype
 	-- Can't be a tile
@@ -181,6 +189,14 @@ script.on_event(defines.events.on_built_entity, function (EventData)
 	local player = ghost.last_user
 	local force = ghost.force_index
 
+	local bp_stack = storage.bp_inventory[1]
+	bp_stack.set_stack("blueprint")
+	bp_stack.create_blueprint{
+		area = ghost.selection_box,
+		surface = surface,
+		force = force,
+	}
+
 	ghost.destroy{raise_destroy = false}
 	local new_entity = surface.create_entity{
 		name = "entity-ghost",
@@ -192,12 +208,37 @@ script.on_event(defines.events.on_built_entity, function (EventData)
 
 		-- recipe = recipe_name,
 		create_build_effect_smoke = false,
+		tags = {cip_bp = bp_stack.export_stack()}
 	}
 	new_entity.set_recipe(recipe_name) -- Get rid of once `recipe` is a functional parameter
+end
 
-end, {
-	{filter = "type", type = "entity-ghost"}
-})
+--MARK: Generic on_built
+
+---@param EventData BuiltEventData
+local function on_built(EventData)
+	local entity = EventData.entity
+	if entity.type == "entity-ghost" then return on_ghost_built(EventData) end
+
+	local name = entity.name
+	if name:sub(1,9) ~= "cip-item-" then return end
+
+	site_placed(entity, EventData.tags)
+end
+
+
+---@diagnostic disable-next-line: duplicate-doc-alias
+---@alias BuiltEventData
+---| EventData.on_built_entity
+---| EventData.on_robot_built_entity
+---| EventData.on_space_platform_built_entity
+---| EventData.script_raised_built
+---| EventData.script_raised_revive
+script.on_event(defines.events.on_built_entity, on_built)
+script.on_event(defines.events.on_robot_built_entity, on_built)
+script.on_event(defines.events.on_space_platform_built_entity, on_built)
+script.on_event(defines.events.script_raised_built, on_built)
+script.on_event(defines.events.script_raised_revive, on_built)
 
 --MARK: Recipe Locking
 
