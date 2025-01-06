@@ -119,14 +119,19 @@ for name, recipe in pairs(data.raw["recipe"]) do
 	-- Skip products that make more than one (or are a range)
 	if product.amount ~= 1 then goto next_product end
 
+	-- Skip products that use a fluid (for now)
+	for _, ingredient in pairs(recipe.ingredients) do
+		if ingredient.type == "fluid" then goto next_product end
+	end
+
 	-- Make sure it's an item we care about
-	local ingredient = product.name
-	if not important_items[ingredient] then goto next_product end
+	local product_name = product.name
+	if not important_items[product_name] then goto next_product end
 
 	-- Add it to the map
-	local recipes = item_to_recipe[ingredient] or {}
+	local recipes = item_to_recipe[product_name] or {}
 	table.insert(recipes, name)
-	item_to_recipe[ingredient] = recipes
+	item_to_recipe[product_name] = recipes
 
 	-- Make sure the recipe is marked as important
 	important_recipes[name] = true
@@ -306,9 +311,9 @@ for item in pairs(important_items) do
 	for _, recipe_name in pairs(recipes) do
 		local recipe = data.raw["recipe"][recipe_name]
 		recipe.category = category_name
-
-		local main_result = recipe.results[1]
-		recipe.main_product = main_result.name or main_result[1]
+		recipe.main_product = recipe.results[1].name
+		-- Recipe surface conditions may be lost, but I think this is annoying enough
+		recipe.surface_conditions = entity.surface_conditions
 
 		local ingredients = recipe.ingredients
 		---@cast ingredients -?
@@ -343,9 +348,11 @@ for item in pairs(important_items) do
 		--FIXME: Currently just picks the 'last' recipe to determine the entity results
 		-- This has a high chance of producing an undesirable result with multiple recipes
 		local entity_mineable = entity.minable
-		entity_mineable.result = nil
-		entity_mineable.count = nil
-		entity_mineable.results = entity_mining_results
+		if entity_mineable then
+			entity_mineable.result = nil
+			entity_mineable.count = nil
+			entity_mineable.results = entity_mining_results
+		end
 
 		data:extend{
 			{
@@ -529,7 +536,7 @@ function make_size(width, height)
 		} --[[@as data.ItemPrototype]],
 		{
 			type = "recipe",
-			name = "cip-recipe-"..size_name,
+			name = item_name,
 			ingredients = {
 				{type = "item", name = "wood", amount = width*height}
 			},
